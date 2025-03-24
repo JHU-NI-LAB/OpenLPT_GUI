@@ -213,15 +213,48 @@ STB<T3D>::STB(int frame_start, int frame_end, float fps, double vx_to_mm, int n_
     _pf_param.limit = _axis_limit;
     parsed >> _pf_param.nx >> _pf_param.ny >> _pf_param.nz;
     parsed >> _pf_param.r; _pf_param.r *= _vx_to_mm;
-    _pf_param.nBin_x = 11;
-    _pf_param.nBin_y = 11;
-    _pf_param.nBin_z = 11;
+    // load nBin_x, nBin_y, nBin_z if available
+    parsed >> line;
+    bool is_pfPDF_param = false;
+    if (line.rfind("PDF", 0) == 0)
+    {
+        std::stringstream param_ss(line.substr(4));
+        std::vector<int> nBin_list(3, 0);
+        int idx = 0;
+        while (param_ss >> nBin_list[idx])
+        {
+            idx ++;
+            if (param_ss.peek() == ',')
+            {
+                param_ss.ignore();
+            }
+        }
+        _pf_param.nBin_x = nBin_list[0];
+        _pf_param.nBin_y = nBin_list[1];
+        _pf_param.nBin_z = nBin_list[2];
+        std::cout << "PredField PDF parameters: " << _pf_param.nBin_x << "," << _pf_param.nBin_y << "," << _pf_param.nBin_z << std::endl;
+        is_pfPDF_param = true;
+    }
+    else
+    {
+        _pf_param.nBin_x = 11;
+        _pf_param.nBin_y = 11;
+        _pf_param.nBin_z = 11;
+    }
 
     // Load IPR parameters //
     _ipr_param.n_thread = _n_thread;
 
     int option;
-    parsed >> option;
+    if (is_pfPDF_param)
+    {
+        parsed >> option;
+    }
+    else
+    {
+        option = std::stoi(line);
+    }
+
     if (option == 1)
     {
         _ipr_param.tri_only = true;
