@@ -38,6 +38,17 @@ public:
     ~Tracer2D () {};
 };
 
+class Bubble2D : public Object2D 
+{
+public:
+    double _r_px = 2; // [px], for shaking
+
+    Bubble2D () {};
+    Bubble2D (Bubble2D const& bubble) : Object2D(bubble), _r_px(bubble._r_px) {};
+    Bubble2D (Pt2D const& pt_center) : Object2D(pt_center) {};
+    Bubble2D (Pt2D const& pt_center, double r_px) : Object2D(pt_center), _r_px(r_px) {};
+    ~Bubble2D () {};
+};
 
 // 3D object classes
 class Object3D

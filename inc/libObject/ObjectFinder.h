@@ -17,13 +17,15 @@
 #include "STBCommons.h"
 #include "myMATH.h"
 
+#include "CircleIdentifier.h"
 
 class ObjectFinder2D
 {
 private:
     void findTracer2D(std::vector<Tracer2D>& tr2d_list, Image const& img, double max_intensity, double min_intensity, double r_px=2);
-
     void findTracer2D(std::vector<Tracer2D>& tr2d_list, Image const& img, double max_intensity, double min_intensity, double r_px, PixelRange const& region);
+
+    void findBubble2D(std::vector<Bubble2D>& bb2d_list, Image const& img, double rmin, double rmax, double sense);
 
 public:
     ObjectFinder2D() {};

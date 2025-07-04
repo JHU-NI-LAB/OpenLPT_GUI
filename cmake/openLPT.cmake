@@ -22,9 +22,14 @@ target_link_libraries(ObjectInfo PUBLIC Matrix Camera)
 add_library(SphereInfo SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/Sphere/SphereInfo.cpp)
 target_link_libraries(SphereInfo PUBLIC Matrix Camera)
 
+# Bubble object finder 
+file(GLOB CIRCLE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleCenterAndSizeByCircle/*.cpp")
+add_library(CircleIdentifier SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/CircleIdentifier.cpp ${CIRCLE_SRCS})
+target_link_libraries(CircleIdentifier PUBLIC Matrix)
+
 add_library(ObjectFinder SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/ObjectFinder.hpp)
 set_target_properties(ObjectFinder PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(ObjectFinder PUBLIC Matrix myMath ObjectInfo)
+target_link_libraries(ObjectFinder PUBLIC Matrix myMath ObjectInfo CircleIdentifier)
 
 add_library(StereoMatch SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/StereoMatch.hpp)
 set_target_properties(StereoMatch PROPERTIES LINKER_LANGUAGE CXX)

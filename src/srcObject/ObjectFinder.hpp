@@ -171,6 +171,21 @@ void ObjectFinder2D::findTracer2D
     }
 }
 
+void ObjectFinder2D::findBubble2D
+(std::vector<Bubble2D>& bb2d_list, Image const& img, double rmin, double rmax, double sense)
+{
+    CircleIdentifier circle_id(img);
+    std::vector<Pt2D> center;
+    std::vector<double> radius;
+    circle_id.BubbleCenterAndSizeByCircle(center, radius, rmin, rmax, sense);
+
+    for (size_t i = 0; i < center.size(); i++)
+    {
+        Bubble2D bubble(center[i], radius[i]);
+        bb2d_list.push_back(bubble);
+    }
+}
+
 template<class T>
 void ObjectFinder2D::findObject2D
 (std::vector<T>& obj2d_list, Image const& img, std::vector<double> const& properties)
@@ -178,7 +193,12 @@ void ObjectFinder2D::findObject2D
     if (typeid(T) == typeid(Tracer2D))
     {
         obj2d_list.clear();
-        findTracer2D(obj2d_list, img, properties[0], properties[1], properties[2]);
+        findTracer2D(reinterpret_cast<std::vector<Tracer2D>&>(obj2d_list), img, properties[0], properties[1], properties[2]);
+    }
+    else if (typeid(T) == typeid(Bubble2D))
+    {
+        obj2d_list.clear();
+        findBubble2D(reinterpret_cast<std::vector<Bubble2D>&>(obj2d_list), img, properties[0], properties[1], properties[2]);
     }
     else
     {

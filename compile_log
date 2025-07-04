@@ -1,0 +1,377 @@
+[main] Building folder: d:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/build 
+[build] Starting build
+[proc] Executing command: "C:\Program Files\CMake\bin\cmake.EXE" --build "d:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/build" --config Release --target all -j 18 --
+[build] [  1%] Built target Matrix
+[build] [  2%] Built target test_nanoflann
+[build] [ 36%] Built target tiff
+[build] [ 40%] Built target myMath
+[build] [ 40%] Built target test_Matrix
+[build] [ 41%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/regionprops.cpp.obj
+[build] [ 41%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/nullAssignment.cpp.obj
+[build] [ 43%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/minOrMax.cpp.obj
+[build] [ 43%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/sort.cpp.obj
+[build] [ 46%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/sum.cpp.obj
+[build] [ 45%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/CircleIdentifier.cpp.obj
+[build] [ 47%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/rt_nonfinite.cpp.obj
+[build] [ 48%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/rtGetNaN.cpp.obj
+[build] [ 50%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/rtGetInf.cpp.obj
+[build] [ 50%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/multithresh.cpp.obj
+[build] [ 50%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/unique.cpp.obj
+[build] [ 50%] Building CXX object CMakeFiles/CircleIdentifier.dir/src/srcObject/BubbleCenterAndSizeByCircle/sortIdx.cpp.obj
+[build] [ 51%] Building CXX object CMakeFiles/ImageIO.dir/src/srcMath/ImageIO.cpp.obj
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtGetInf.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\rtGetInf.cpp:15:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtGetNaN.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\rtGetNaN.cpp:14:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rt_nonfinite.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\rt_nonfinite.cpp:15:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\CircleIdentifier.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/CircleIdentifier.h:24:10: fatal error: chcenters.h: No such file or directory
+[build]    24 | #include "chcenters.h"
+[build]       |          ^~~~~~~~~~~~~
+[build] compilation terminated.
+[build] mingw32-make[2]: *** [CMakeFiles\CircleIdentifier.dir\build.make:76: CMakeFiles/CircleIdentifier.dir/src/srcObject/CircleIdentifier.cpp.obj] Error 1
+[build] mingw32-make[2]: *** Waiting for unfinished jobs....
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/nullAssignment.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\nullAssignment.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/regionprops.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\regionprops.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/multithresh.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\multithresh.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sum.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\sum.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/minOrMax.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\minOrMax.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sort.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\sort.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sortIdx.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\sortIdx.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/unique.h:15,
+[build]                  from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\unique.cpp:12:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:142:40: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '9223372036854775807' to '-1' [-Woverflow]
+[build]   142 |     static const int64_T MAX_int64_T = 9223372036854775807L;
+[build]       |                                        ^~~~~~~~~~~~~~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:143:62: warning: overflow in conversion from 'long long int' to 'int64_T' {aka 'long int'} changes value from '-9223372036854775808' to '0' [-Woverflow]
+[build]   143 |     static const int64_T MIN_int64_T = -9223372036854775807L - 1L;
+[build]       |                                        ~~~~~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/rtwtypes.h:144:42: warning: conversion from 'long long unsigned int' to 'uint64_T' {aka 'long unsigned int'} changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+[build]   144 |     static const uint64_T MAX_uint64_T = 0xFFFFFFFFFFFFFFFFUL;
+[build]       |                                          ^~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/nullAssignment.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/multithresh.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sum.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/regionprops.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sortIdx.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/unique.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/sort.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] In file included from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/minOrMax.h:16:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:214:40: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   214 |     class array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                        ^~~~~~~~
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/iterator:61,
+[build]                  from D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:45:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:311:46: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+[build]   311 |     class const_array_iterator : public std::iterator<std::random_access_iterator_tag,
+[build]       |                                              ^~~~~~~~
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_iterator_base_types.h:127:34: note: declared here
+[build]   127 |     struct _GLIBCXX17_DEPRECATED iterator
+[build]       |                                  ^~~~~~~~
+[build] [ 51%] Building CXX object CMakeFiles/Camera.dir/src/srcMath/Camera.cpp.obj
+[build] In file included from D:/msys2/mingw64/include/c++/13.2.0/string:51,
+[build]                  from D:/msys2/mingw64/include/c++/13.2.0/bits/locale_classes.h:40,
+[build]                  from D:/msys2/mingw64/include/c++/13.2.0/bits/ios_base.h:41,
+[build]                  from D:/msys2/mingw64/include/c++/13.2.0/streambuf:43,
+[build]                  from D:/msys2/mingw64/include/c++/13.2.0/bits/streambuf_iterator.h:35,
+[build]                  from D:/msys2/mingw64/include/c++/13.2.0/iterator:66:
+[build] In static member function 'static void std::__copy_move<false, false, std::random_access_iterator_tag>::__assign_one(_Tp*, _Up*) [with _Tp = double; _Up = double]',
+[build]     inlined from 'static _Up* std::__copy_move<_IsMove, true, std::random_access_iterator_tag>::__copy_m(_Tp*, _Tp*, _Up*) [with _Tp = double; _Up = double; bool _IsMove = false]' at D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:440:20,
+[build]     inlined from '_OI std::__copy_move_a2(_II, _II, _OI) [with bool _IsMove = false; _II = double*; _OI = double*]' at D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:506:30,
+[build]     inlined from '_OI std::__copy_move_a1(_II, _II, _OI) [with bool _IsMove = false; _II = double*; _OI = double*]' at D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:533:42,
+[build]     inlined from '_OI std::__copy_move_a(_II, _II, _OI) [with bool _IsMove = false; _II = double*; _OI = double*]' at D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:540:31,
+[build]     inlined from '_OI std::copy(_II, _II, _OI) [with _II = double*; _OI = double*]' at D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:633:7,
+[build]     inlined from 'void coder::detail::data_ptr<T, SZ>::reserve(SZ) [with T = double; SZ = int]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:108:36,
+[build]     inlined from 'void coder::detail::data_ptr<T, SZ>::reserve(SZ) [with T = double; SZ = int]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:105:18,
+[build]     inlined from 'void coder::detail::data_ptr<T, SZ>::resize(SZ) [with T = double; SZ = int]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:118:24,
+[build]     inlined from 'void coder::array_base<T, SZ, N>::ensureCapacity(SZ) [with T = double; SZ = int; int N = 2]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:640:25,
+[build]     inlined from 'void coder::array_base<T, SZ, N>::set_size(Dims ...) [with Dims = {int, int}; T = double; SZ = int; int N = 2]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:539:27,
+[build]     inlined from 'void coder::regionprops(const array<bool, 2>&, const array<double, 2>&, array<struct_T, 1>&)' at D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\regionprops.cpp:178:44:
+[build] D:/msys2/mingw64/include/c++/13.2.0/bits/stl_algobase.h:398:17: warning: array subscript 0 is outside array bounds of 'double [0]' [-Warray-bounds=]
+[build]   398 |         { *__to = *__from; }
+[build]       |           ~~~~~~^~~~~~~~~
+[build] In member function 'void coder::detail::data_ptr<T, SZ>::reserve(SZ) [with T = double; SZ = int]',
+[build]     inlined from 'void coder::detail::data_ptr<T, SZ>::reserve(SZ) [with T = double; SZ = int]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:105:18,
+[build]     inlined from 'void coder::detail::data_ptr<T, SZ>::resize(SZ) [with T = double; SZ = int]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:118:24,
+[build]     inlined from 'void coder::array_base<T, SZ, N>::ensureCapacity(SZ) [with T = double; SZ = int; int N = 2]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:640:25,
+[build]     inlined from 'void coder::array_base<T, SZ, N>::set_size(Dims ...) [with Dims = {int, int}; T = double; SZ = int; int N = 2]' at D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:539:27,
+[build]     inlined from 'void coder::regionprops(const array<bool, 2>&, const array<double, 2>&, array<struct_T, 1>&)' at D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcObject\BubbleCenterAndSizeByCircle\regionprops.cpp:178:44:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:57:25: note: object of size 0 allocated by 'operator new []'
+[build]    57 | #define CODER_NEW(T, N) new T[N]
+[build]       |                         ^~~~~~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libObject/BubbleCenterAndSizeByCircle/coder_array.h:107:40: note: in expansion of macro 'CODER_NEW'
+[build]   107 |                     T* const new_data{ CODER_NEW(T, _n) };
+[build]       |                                        ^~~~~~~~~
+[build] [ 54%] Building CXX object CMakeFiles/OTF.dir/src/srcSTB/OTF.cpp.obj
+[build] [ 54%] Building CXX object CMakeFiles/test_myMATH.dir/test/test_myMATH.cpp.obj
+[build] [ 54%] Building CXX object CMakeFiles/KalmanFilter.dir/src/srcMath/KalmanFilter.cpp.obj
+[build] mingw32-make[1]: *** [CMakeFiles\Makefile2:352: CMakeFiles/CircleIdentifier.dir/all] Error 2
+[build] mingw32-make[1]: *** Waiting for unfinished jobs....
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcMath\Camera.cpp: In member function 'void Camera::loadParameters(std::istream&)':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\src\srcMath\Camera.cpp:255:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   255 |         for (int i = 0; i < _pinplate_param.refract_array.size(); i ++)
+[build]       |                         ~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[build] [ 54%] Linking CXX shared library libImageIO.dll
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp: In function 'bool test_function_1()':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:16:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    16 |         for (int i = 0; i < sort_index.size(); i ++)
+[build]       |                         ~~^~~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:22:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    22 |         for (int i = 0; i < sort_index_ans.size(); i ++)
+[build]       |                         ~~^~~~~~~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp: In function 'bool test_function_3()':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:61:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    61 |         for (int i = 0; i < judge.size(); i ++)
+[build]       |                         ~~^~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:67:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    67 |         for (int i = 0; i < judge_ans.size(); i ++)
+[build]       |                         ~~^~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp: In function 'bool test_function_4()':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:86:23: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    86 |     for (int i = 0; i < nums.size(); i ++)
+[build]       |                     ~~^~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:92:31: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    92 |             for (int i = 0; i < nums.size(); i ++)
+[build]       |                             ~~^~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:98:31: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]    98 |             for (int i = 0; i < nums_ans.size(); i ++)
+[build]       |                             ~~^~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp: In function 'bool test_function_17()':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:616:23: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<std::vector<double, std::allocator<double> > >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   616 |     for (int i = 0; i < x_list.size(); i ++)
+[build]       |                     ~~^~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:623:23: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<std::vector<double, std::allocator<double> > >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   623 |     for (int i = 0; i < coeff_list_sol.size(); i ++)
+[build]       |                     ~~^~~~~~~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:625:27: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   625 |         for (int j = 0; j < coeff_list_sol[i].size(); j ++)
+[build]       |                         ~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:631:35: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   631 |                 for (int k = 0; k < coeff_list[i].size(); k ++)
+[build]       |                                 ~~^~~~~~~~~~~~~~~~~~~~~~
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:638:35: warning: comparison of integer expressions of different signedness: 'int' and 'std::vector<double, std::allocator<double> >::size_type' {aka 'long long unsigned int'} [-Wsign-compare]
+[build]   638 |                 for (int k = 0; k < coeff_list_sol[i].size(); k ++)
+[build]       |                                 ~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+[build] In file included from D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:2:
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libMath/myMATH.h: In instantiation of 'void myMATH::sortID(std::vector<int, std::allocator<int> >&, const std::vector<T>&) [with T = double]':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:9:28:   required from here
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libMath/myMATH.h:32:27: warning: comparison of integer expressions of different signedness: 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} and 'int' [-Wsign-compare]
+[build]    32 |     if (sort_index.size() != n)
+[build]       |         ~~~~~~~~~~~~~~~~~~^~~~
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libMath/myMATH.h: In instantiation of 'void myMATH::isOutlier(std::vector<int, std::allocator<int> >&, const std::vector<T>&) [with T = double]':
+[build] D:\My Code\Tracking Code\OpenLPT 0.3\OpenLPT\test\test_myMATH.cpp:54:31:   required from here
+[build] D:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/inc/libMath/myMATH.h:78:22: warning: comparison of integer expressions of different signedness: 'std::vector<int, std::allocator<int> >::size_type' {aka 'long long unsigned int'} and 'int' [-Wsign-compare]
+[build]    78 |     if (judge.size() != n)
+[build]       |         ~~~~~~~~~~~~~^~~~
+[build] [ 55%] Linking CXX shared library libOTF.dll
+[build] [ 55%] Built target ImageIO
+[build] [ 56%] Linking CXX shared library libKalmanFilter.dll
+[build] [ 56%] Built target OTF
+[build] [ 56%] Built target KalmanFilter
+[build] [ 57%] Linking CXX shared library libCamera.dll
+[build] [ 58%] Linking CXX executable test_myMATH.exe
+[build] [ 58%] Built target Camera
+[build] [ 58%] Built target test_myMATH
+[build] mingw32-make: *** [Makefile:145: all] Error 2
+[proc] The command: "C:\Program Files\CMake\bin\cmake.EXE" --build "d:/My Code/Tracking Code/OpenLPT 0.3/OpenLPT/build" --config Release --target all -j 18 -- exited with code: 2
+[driver] Build completed: 00:00:04.854
+[build] Build finished with exit code 2
