@@ -20,6 +20,9 @@ add_library(bindKalmanFilter STATIC ${CMAKE_SOURCE_DIR}/src/srcMath/KalmanFilter
 add_library(bindObjectInfo STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectInfo.cpp)
 # target_link_libraries(bindObjectInfo PUBLIC bindMatrix)
 
+file(GLOB CIRCLE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleCenterAndSizeByCircle/*.cpp")
+add_library(bindCircleIdentifier STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/CircleIdentifier.cpp ${CIRCLE_SRCS})
+
 add_library(bindObjectFinder INTERFACE ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectFinder.hpp)
 set_property(TARGET bindObjectFinder PROPERTY LINKER_LANGUAGE CXX)
 # target_link_libraries(bindObjectFinder PUBLIC bindMatrix bindObjectInfo bindmyMath)
@@ -61,6 +64,7 @@ set(BINDINGS_LIB
     bindCamera
     bindKalmanFilter
     bindObjectInfo
+    bindCircleIdentifier
     bindObjectFinder
     bindStereoMatch
     bindOTF

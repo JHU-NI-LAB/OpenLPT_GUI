@@ -25,6 +25,19 @@ void init_ObjectInfo(py::module &m)
             );
         })
         .doc() = "Tracer2D class";
+    
+    py::class_<Bubble2D, Object2D>(m, "Bubble2D")
+        .def(py::init<>())
+        .def(py::init<Bubble2D const&>())
+        .def(py::init<Pt2D const&, double&>())
+        .def_readwrite("_r_px", &Bubble2D::_r_px)
+        .def("to_dict", [](Bubble2D const& self){
+            return py::dict(
+                "_pt_center"_a=self._pt_center, 
+                "_r_px"_a=self._r_px
+            );
+        })
+        .doc() = "Bubble2D class";
 
     py::class_<Object3D>(m, "Object3D")
         .def(py::init<>())
