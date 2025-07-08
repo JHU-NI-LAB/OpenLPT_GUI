@@ -19,6 +19,7 @@ void init_KalmanFilter(py::module &);
 // Submodule: object 
 void init_ObjectInfo(py::module &);
 void init_ObjectFinder(py::module &);
+void init_BubbleRefImg(py::module &);
 
 // Submodule: stb
 void init_StereoMatch(py::module &);
@@ -100,6 +101,7 @@ PYBIND11_MODULE(pyOpenLPT, m)
     py::module m_object = m.def_submodule("object", "Object module");
     init_ObjectInfo(m_object);
     init_ObjectFinder(m_object);
+    init_BubbleRefImg(m_object);
 
 
     // Submodule: stb

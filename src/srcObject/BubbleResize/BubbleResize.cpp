@@ -10,11 +10,6 @@
 
 // Include files
 #include "BubbleResize.h"
-#include "ResizeBubble_data.h"
-#include "imresize.h"
-#include "rt_nonfinite.h"
-#include "coder_array.h"
-#include <cmath>
 
 // Function Definitions
 BubbleResize::BubbleResize()
@@ -29,21 +24,27 @@ BubbleResize::~BubbleResize()
 
 // b_img: the reference bubble image, b_d: the diameter of the reference
 // img: output resized image, d_b: the size of the output
-void BubbleResize::ResizeBubble(int**& b_img, double b_d,
-                                int**& o_img, double d_b)
+void BubbleResize::ResizeBubble(Image& o_img, Image const& b_img, int d_b)
 {
   coder::array<double, 2U> weights;
   coder::array<int, 2U> indices;
   coder::array<unsigned char, 2U> out;
   coder::array<unsigned char, 2U> b_i;
   coder::array<unsigned char, 2U> img;
-  b_i.set_size(b_d, b_d);
-  // load b_img into b_i. 
+
+  int nrow = b_img.getDimRow();
+  int ncol = b_img.getDimCol();
+  b_i.set_size(nrow, ncol);
+
+  double b_img_max = 0.0;
+  // #pragma omp parallel for reduction(max:b_img_max)
+  for (int i = 0; i < nrow * ncol; i ++) {
+    b_img_max = std::max(b_img_max, b_img[i]);    
+  }
+
   for (int idx0{ 0 }; idx0 < b_i.size(0); idx0++) {
       for (int idx1{ 0 }; idx1 < b_i.size(1); idx1++) {
-          // Set the value of the array element.
-          // Change this value to the value that the application requires.
-          b_i[idx0 + b_i.size(0) * idx1] = b_img[idx0][idx1]; //TODO: check the index
+          b_i[idx0 + b_i.size(0) * idx1] = b_img(idx0,idx1)/b_img_max * 255; 
       }
   }
 
@@ -51,24 +52,11 @@ void BubbleResize::ResizeBubble(int**& b_img, double b_d,
   double outputSize_idx_1;
   double scale_idx_0;
   double scale_idx_1;
-  if (std::isnan(d_b)) {
-    outputSize_idx_0 = std::ceil(d_b * static_cast<double>(b_i.size(0)) /
-                                 static_cast<double>(b_i.size(1)));
-    outputSize_idx_1 = std::ceil(d_b);
-    scale_idx_0 = outputSize_idx_1 / static_cast<double>(b_i.size(1));
-    scale_idx_1 = outputSize_idx_1 / static_cast<double>(b_i.size(1));
-  } else if (std::isnan(d_b)) {
-    outputSize_idx_0 = std::ceil(d_b);
-    outputSize_idx_1 = std::ceil(d_b * static_cast<double>(b_i.size(1)) /
-                                 static_cast<double>(b_i.size(0)));
-    scale_idx_0 = outputSize_idx_0 / static_cast<double>(b_i.size(0));
-    scale_idx_1 = outputSize_idx_0 / static_cast<double>(b_i.size(0));
-  } else {
-    outputSize_idx_0 = std::ceil(d_b);
-    outputSize_idx_1 = outputSize_idx_0;
-    scale_idx_0 = outputSize_idx_0 / static_cast<double>(b_i.size(0));
-    scale_idx_1 = outputSize_idx_0 / static_cast<double>(b_i.size(1));
-  }
+  outputSize_idx_0 = std::ceil(d_b);
+  outputSize_idx_1 = outputSize_idx_0;
+  scale_idx_0 = outputSize_idx_0 / static_cast<double>(b_i.size(0));
+  scale_idx_1 = outputSize_idx_0 / static_cast<double>(b_i.size(1));
+  
   if (scale_idx_0 <= scale_idx_1) {
     //  Resize first dimension
     coder::contributions(b_i.size(0), outputSize_idx_0, scale_idx_0, 4.0,
@@ -98,12 +86,9 @@ void BubbleResize::ResizeBubble(int**& b_img, double b_d,
   // load img into o_img. 
   for (int idx0{ 0 }; idx0 < img.size(0); idx0++) {
       for (int idx1{ 0 }; idx1 < img.size(1); idx1++) {
-          // Set the value of the array element.
-          // Change this value to the value that the application requires.
-          o_img[idx0][idx1] = img[idx0 + img.size(0) * idx1]; //TODO: check the index
+          o_img(idx0,idx1) = img[idx0 + img.size(0) * idx1] / 255.0 * b_img_max;
       }
   }
-
 }
 
 // End of code generation (BubbleResize.cpp)

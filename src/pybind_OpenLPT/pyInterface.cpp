@@ -15,6 +15,7 @@
 #include "KalmanFilter.h"
 #include "ObjectInfo.h"
 #include "ObjectFinder.h"
+#include "BubbleRefImg.h"
 #include "StereoMatch.h"
 #include "OTF.h"
 #include "Shake.h"
@@ -38,6 +39,7 @@ using namespace pybind11::literals;
 
 #include "pyObjectInfo.cpp"
 #include "pyObjectFinder.cpp"
+#include "pyBubbleRefImg.cpp"
 
 #include "pyStereoMatch.cpp"
 #include "pyOTF.cpp"

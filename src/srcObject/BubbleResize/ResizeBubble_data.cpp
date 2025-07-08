@@ -10,7 +10,6 @@
 
 // Include files
 #include "ResizeBubble_data.h"
-#include "rt_nonfinite.h"
 
 // Variable Definitions
 omp_nest_lock_t emlrtNestLockGlobal2;

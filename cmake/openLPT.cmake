@@ -31,6 +31,15 @@ add_library(ObjectFinder SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/ObjectFind
 set_target_properties(ObjectFinder PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(ObjectFinder PUBLIC Matrix myMath ObjectInfo CircleIdentifier)
 
+# Bubble Resize
+file(GLOB BBRESIZE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleResize/*.cpp")
+add_library(BubbleResize SHARED ${BBRESIZE_SRCS})
+target_link_libraries(BubbleResize PUBLIC Matrix)
+
+# Bubble reference image
+add_library(BubbleRefImg SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleRefImg.cpp)
+target_link_libraries(BubbleRefImg PUBLIC Matrix myMath ObjectInfo BubbleResize)
+
 add_library(StereoMatch SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/StereoMatch.hpp)
 set_target_properties(StereoMatch PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(StereoMatch PUBLIC Matrix myMath ObjectInfo Camera)

@@ -10,9 +10,6 @@
 
 // Include files
 #include "imresize.h"
-#include "rt_nonfinite.h"
-#include "coder_array.h"
-#include <cmath>
 
 // Function Declarations
 static double rt_powd_snf(double u0, double u1);

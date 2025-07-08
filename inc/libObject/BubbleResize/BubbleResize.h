@@ -18,13 +18,24 @@
 #include <cstddef>
 #include <cstdlib>
 
+#include "ResizeBubble_data.h"
+#include "imresize.h"
+#include "rt_nonfinite.h"
+#include "coder_array.h"
+#include <cmath>
+
+#include "Matrix.h"
+
+#ifdef fpclassify
+#undef fpclassify
+#endif
+
 // Type Definitions
 class BubbleResize {
 public:
   BubbleResize();
   ~BubbleResize();
-  void ResizeBubble(int**& b_i, double b_d,
-                    int**& o_img, double d_b);
+  void ResizeBubble(Image& o_img, Image const& b_img, int d_b);
 };
 
 #endif
