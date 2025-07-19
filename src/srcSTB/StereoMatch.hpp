@@ -45,16 +45,30 @@ void StereoMatch::match(std::vector<T3D>& obj3d_list, std::vector<std::vector<T2
 
     if (typeid(T3D)==typeid(Tracer3D) && typeid(T2D)==typeid(Tracer2D))
     {
-        tracerMatch(obj2d_list);
+        tracerMatch(reinterpret_cast<std::vector<std::vector<Tracer2D>> const&> (obj2d_list));
 
         if (_param.is_delete_ghost)
         {   
             // removeGhostTracer(obj3d_list, obj2d_list);
-            removeGhostTracerTest(obj3d_list, obj2d_list);
+            removeGhostTracerTest(reinterpret_cast<std::vector<Tracer3D>&>(obj3d_list), reinterpret_cast<std::vector<std::vector<Tracer2D>> const&>(obj2d_list));
         }
         else
         {
-            fillTracerInfo(obj3d_list, obj2d_list);
+            fillTracerInfo(reinterpret_cast<std::vector<Tracer3D>&>(obj3d_list), reinterpret_cast<std::vector<std::vector<Tracer2D>> const&>(obj2d_list));
+        }
+    }
+    else if (typeid(T3D)==typeid(Bubble3D) && typeid(T2D)==typeid(Bubble2D))
+    {
+        bubbleMatch(reinterpret_cast<std::vector<std::vector<Bubble2D>> const&> (obj2d_list));
+
+        if (_param.is_delete_ghost)
+        {   
+            // same as removeGhostTracerTest
+            removeGhostBubble(reinterpret_cast<std::vector<Bubble3D>&>(obj3d_list), reinterpret_cast<std::vector<std::vector<Bubble2D>> const&>(obj2d_list));
+        }
+        else
+        {
+            fillBubbleInfo(reinterpret_cast<std::vector<Bubble3D>&>(obj3d_list), reinterpret_cast<std::vector<std::vector<Bubble2D>> const&>(obj2d_list));
         }
     }
     else
@@ -71,7 +85,11 @@ void StereoMatch::saveObjInfo (std::string path, std::vector<T3D> const& obj3d_l
 {
     if (typeid(T3D)==typeid(Tracer3D))
     {
-        saveTracerInfo(path, obj3d_list);
+        saveTracerInfo(path, reinterpret_cast<std::vector<Tracer3D> const&>(obj3d_list));
+    }
+    else if (typeid(T3D)==typeid(Bubble3D))
+    {
+        saveBubbleInfo(path, reinterpret_cast<std::vector<Bubble3D> const&>(obj3d_list));
     }
     else
     {

@@ -24,7 +24,7 @@ BubbleResize::~BubbleResize()
 
 // b_img: the reference bubble image, b_d: the diameter of the reference
 // img: output resized image, d_b: the size of the output
-void BubbleResize::ResizeBubble(Image& o_img, Image const& b_img, int d_b)
+void BubbleResize::ResizeBubble(Image& o_img, Image const& b_img, int d_b, double b_img_max)
 {
   coder::array<double, 2U> weights;
   coder::array<int, 2U> indices;
@@ -36,11 +36,11 @@ void BubbleResize::ResizeBubble(Image& o_img, Image const& b_img, int d_b)
   int ncol = b_img.getDimCol();
   b_i.set_size(nrow, ncol);
 
-  double b_img_max = 0.0;
-  // #pragma omp parallel for reduction(max:b_img_max)
-  for (int i = 0; i < nrow * ncol; i ++) {
-    b_img_max = std::max(b_img_max, b_img[i]);    
-  }
+  // double b_img_max = 0.0;
+  // // #pragma omp parallel for reduction(max:b_img_max)
+  // for (int i = 0; i < nrow * ncol; i ++) {
+  //   b_img_max = std::max(b_img_max, b_img[i]);    
+  // }
 
   for (int idx0{ 0 }; idx0 < b_i.size(0); idx0++) {
       for (int idx1{ 0 }; idx1 < b_i.size(1); idx1++) {

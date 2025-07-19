@@ -43,7 +43,18 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
             int npix = std::round(dia_ref[i]);
             std::vector<Image> bb_img_i(n_select, Image(npix, npix, 0.0));
             std::vector<double> max_intensity(n_select, 0.0);
-            std::vector<int> is_satisfy(n_select, 0);            
+            std::vector<int> is_satisfy(n_select, 0);      
+            
+            int cam_id_real = _cam_list.useid_list[i];
+            int nrow = img_input[cam_id_real].getDimRow();
+            int ncol = img_input[cam_id_real].getDimCol();
+            // double intensity_max = _cam_list.intensity_max[cam_id_real];
+            double intensity_max = 0;
+            for (int row_id = 0; row_id < nrow; row_id++) {
+                for (int col_id = 0; col_id < ncol; col_id++) {
+                    intensity_max = std::max(intensity_max, img_input[cam_id_real](row_id, col_id));
+                }
+            }
 
             #pragma omp parallel for 
             for (int j = 0; j < n_select; j++) {
@@ -74,26 +85,26 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
                 int y_max = std::floor(yc + r) + 1;
 
                 // check if out of the image range
-                if (x_min < 0 || x_max > img_input[i].getDimCol() || 
-                    y_min < 0 || y_max > img_input[i].getDimRow()) {
+                if (x_min < 0 || x_max > ncol || 
+                    y_min < 0 || y_max > nrow) {
                     continue;
                 }
 
                 int dx = x_max - x_min;
                 int dy = y_max - y_min;
                 int img_size = std::min(dx, dy);
-                Image bb_img_ij = Image(img_size, img_size, 0.0);
+                Image bb_img_ij(img_size, img_size, 0.0);
                 double max_int = 0;
                 for (int x_id = 0; x_id < img_size; x_id++) {
                     for (int y_id = 0; y_id < img_size; y_id++) {
                         double dx_real = x_min + x_id - xc;
                         double dy_real = y_min + y_id - yc;
-                        bool is_outside = dx_real * dx_real + dy_real * dy_real > r * r;
+                        bool is_outside = dx_real * dx_real + dy_real * dy_real > (r+1) * (r+1);
 
                         if (is_outside) {
                             bb_img_ij(y_id, x_id) = 0;
                         } else {
-                            double val = img_input[i](y_id + y_min, x_id + x_min);
+                            double val = img_input[cam_id_real](y_id + y_min, x_id + x_min);
                             bb_img_ij(y_id, x_id) = val;
                             max_int = std::max(max_int, val);
                         }
@@ -104,7 +115,11 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
 
                 // resize image to given size
                 BubbleResize bb_resizer;
-                bb_resizer.ResizeBubble(bb_img_i[j], bb_img_ij, npix);
+                bb_resizer.ResizeBubble(bb_img_i[j], bb_img_ij, npix, intensity_max);
+
+                // // for debug
+                // std::string file = "D:\\My Code\\Tracking Code\\OpenLPT 0.3\\OpenLPT\\test\\inputs\\test_BubbleRefImg\\debug\\cam" + std::to_string(cam_id_real) + "_bb_" + std::to_string(j) + ".csv";
+                // bb_img_ij.write(file);
             }
             
             double mean_int = 0;

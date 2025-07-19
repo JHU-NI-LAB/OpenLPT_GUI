@@ -186,9 +186,57 @@ private:
         std::vector<std::vector<Tracer2D>> const& tr2d_list
     );
 
+
+    //         //
+    // Bubbles //
+    //         //
+    void bubbleMatch(std::vector<std::vector<Bubble2D>> const& bb2d_list);
+
+    void removeGhostBubble (std::vector<Bubble3D>& obj3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list);
+
+    void fillBubbleInfo (std::vector<Bubble3D>& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list);
+
+    void saveBubbleInfo (std::string path, std::vector<Bubble3D> const& bb3d_list);
+
+    void findBubbleMatch (
+        int id,
+        std::vector<int> const& bbID_match,
+        std::deque<std::vector<int>>& bbID_match_list, 
+        std::deque<double>& error_list,
+        std::vector<std::vector<Bubble2D>> const& bb2d_list
+    );
+
+    void iterOnObjIDMap (
+        int id, 
+        int row_id, int col_id,
+        std::vector<Line2D> const& sight2D_list,
+        std::vector<Line3D>& sight3D_list,
+        std::vector<int> const& bbID_match, 
+        std::deque<std::vector<int>>& bbID_match_list,
+        std::deque<double>& error_list,
+        std::vector<std::vector<Bubble2D>> const& bb2d_list
+    );
+
+    bool checkReProject(
+        int id, 
+        int bb_id,
+        std::vector<int> const& bbID_match, 
+        std::vector<std::vector<Bubble2D>> const& bb2d_list
+    );
+
+    void checkBubbleMatch(
+        int id, 
+        Pt3D const& pt3d,
+        std::vector<int> const& bbID_match,
+        std::deque<std::vector<int>>& bbID_match_list,
+        std::deque<double>& error_list,
+        std::vector<std::vector<Bubble2D>> const& bb2d_list
+    );
+
 };
 
 #include "StereoMatch.hpp"
+#include "StereoMatch_Bubble.hpp"
 
 #endif
 

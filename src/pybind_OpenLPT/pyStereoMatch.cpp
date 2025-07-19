@@ -35,7 +35,15 @@ void init_StereoMatch(py::module& m)
             self.match(obj3d_list, obj2d_list);
             return obj3d_list;
         })
+        .def("match", [](StereoMatch& self, std::vector<std::vector<Bubble2D>> const& obj2d_list){
+            std::vector<Bubble3D> obj3d_list;
+            self.match(obj3d_list, obj2d_list);
+            return obj3d_list;
+        })
         .def("saveObjInfo", [](StereoMatch& self, std::string path, std::vector<Tracer3D> const& obj3d_list){
+            self.saveObjInfo(path, obj3d_list);
+        })
+        .def("saveObjInfo", [](StereoMatch& self, std::string path, std::vector<Bubble3D> const& obj3d_list){
             self.saveObjInfo(path, obj3d_list);
         })
         .def("saveObjIDMatchList", &StereoMatch::saveObjIDMatchList)

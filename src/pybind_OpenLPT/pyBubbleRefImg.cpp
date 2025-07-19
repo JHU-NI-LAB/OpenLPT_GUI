@@ -2,11 +2,11 @@ void init_BubbleRefImg(py::module &m)
 {
     py::class_<BubbleResize>(m, "BubbleResize")
         .def(py::init<>())
-        .def("ResizeBubble", [](BubbleResize& self, Image const& b_img, int d_b) {
+        .def("ResizeBubble", [](BubbleResize& self, Image const& b_img, int d_b, double b_img_max) {
             Image o_img(d_b, d_b, 0);
-            self.ResizeBubble(o_img, b_img, d_b);
+            self.ResizeBubble(o_img, b_img, d_b, b_img_max);
             return o_img;
-        }, py::arg("b_img"), py::arg("d_b"))
+        }, py::arg("b_img"), py::arg("d_b"), py::arg("b_img_max")=255)
         .doc() = "BubbleResize class";
 
     py::class_<BubbleRefImg>(m, "BubbleRefImg")

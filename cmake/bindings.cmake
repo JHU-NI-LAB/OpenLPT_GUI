@@ -34,7 +34,7 @@ add_library(bindBubbleRefImg STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/BubbleRefI
 
 # STB module 
 # Find openmp package
-add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.hpp)
+add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.hpp ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch_Bubble.hpp)
 set_property(TARGET bindStereoMatch PROPERTY LINKER_LANGUAGE CXX)
 
 add_library(bindOTF STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/OTF.cpp)
