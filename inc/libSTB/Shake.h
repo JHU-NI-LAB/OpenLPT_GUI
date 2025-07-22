@@ -72,6 +72,9 @@ private:
     // Remove all tracked particles from image to get residual image.
     void calResImg(std::vector<Tracer3D> const& tr3d_list, OTF const& otf, std::vector<Image> const& imgOrig_list);
 
+    // calculate augmented images for a tracer
+    ImgAugList calAugimg(Tracer3D& tr3d, OTF const& otf);
+
     // Remove negative pxiel and set them as zeros, this function is used to prepare residual image for the next run of IPR.
     void absResImg ();
 
