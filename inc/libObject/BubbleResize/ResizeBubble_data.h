@@ -14,6 +14,7 @@
 
 // Include files
 #include "rtwtypes.h"
+#include "rt_nonfinite.h"
 #include "omp.h"
 #include <cstddef>
 #include <cstdlib>

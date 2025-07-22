@@ -105,6 +105,47 @@ public:
     void saveObject3D (std::ofstream& output, int n_cam_all) const;
 };
 
+// Bubble3D class
+class Bubble3D : public Object3D
+{
+public:
+    int _n_2d = 0;
+    double _error = 0; // [mm]
+    std::vector<int> _camid_list; // min id = 0
+    std::vector<Bubble2D> _bb2d_list;
+
+    Bubble3D () {};
+    Bubble3D (Bubble3D const& bubble3d) : Object3D(bubble3d), _n_2d(bubble3d._n_2d), _error(bubble3d._error), _camid_list(bubble3d._camid_list), _bb2d_list(bubble3d._bb2d_list) {};
+    Bubble3D (Pt3D const& pt_center) : Object3D(pt_center) {};
+    ~Bubble3D () {};
+
+    // user has to make sure the cam_id is unique
+    void addBubble2D (Bubble2D const& bb2d, int cam_id);
+    void addBubble2D (std::vector<Bubble2D> const& bb2d_list, std::vector<int> const& camid_list);
+
+    void removeBubble2D (int cam_id);
+    void removeBubble2D (std::vector<int> const& camid_list);
+    void clearBubble2D ();
+
+    void updateBubble2D (Bubble2D const& bb2d, int cam_id);
+
+    // _bb2d_list and _camid_list will be updated to bubble2d_list and camid_list
+    void updateBubble2D (std::vector<Bubble2D> const& bb2d_list, std::vector<int> const& camid_list);
+
+    // project 3D bubble to 2D
+    // It will project the 3D bubble to 2D for each camera in camid_list
+    //  and store the 2D bubbles in _bb2d_list.
+    // input:
+    //  camid_list: camera id list (set _camid_list = camid_list)
+    //  cam_list_all: all camera parameters, camid = 0, 1, 2, ...
+    void projectObject2D (std::vector<int> const& camid_list, std::vector<Camera> const& cam_list_all);
+    void setRadius2D (std::vector<double> r_px_list);
+
+    void getBubble2D (Bubble2D& bubble2d, int cam_id);
+
+    // save the 3D bubble to a file
+    void saveObject3D (std::ofstream& output, int n_cam_all) const;
+};
 
 // Define Obj3dCloud class for KD-tree
 template <class T3D>

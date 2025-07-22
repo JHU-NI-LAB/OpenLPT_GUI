@@ -27,10 +27,14 @@ add_library(bindObjectFinder INTERFACE ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectF
 set_property(TARGET bindObjectFinder PROPERTY LINKER_LANGUAGE CXX)
 # target_link_libraries(bindObjectFinder PUBLIC bindMatrix bindObjectInfo bindmyMath)
 
+file(GLOB BBRESIZE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleResize/*.cpp")
+add_library(bindBubbleResize STATIC ${BBRESIZE_SRCS})
+
+add_library(bindBubbleRefImg STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/BubbleRefImg.cpp)
 
 # STB module 
 # Find openmp package
-add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.hpp)
+add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.hpp ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch_Bubble.hpp)
 set_property(TARGET bindStereoMatch PROPERTY LINKER_LANGUAGE CXX)
 
 add_library(bindOTF STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/OTF.cpp)
@@ -66,6 +70,8 @@ set(BINDINGS_LIB
     bindObjectInfo
     bindCircleIdentifier
     bindObjectFinder
+    bindBubbleResize
+    bindBubbleRefImg
     bindStereoMatch
     bindOTF
     bindShake

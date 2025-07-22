@@ -101,4 +101,54 @@ void init_ObjectInfo(py::module &m)
             );
         })
         .doc() = "Tracer3D class";
+
+    py::class_<Bubble3D, Object3D>(m, "Bubble3D")
+        .def(py::init<>())
+        .def(py::init<Bubble3D const&>())
+        .def(py::init<Pt3D const&>())
+        .def_readwrite("_n_2d", &Bubble3D::_n_2d)
+        .def_readwrite("_error", &Bubble3D::_error)
+        .def_readwrite("_camid_list", &Bubble3D::_camid_list)
+        .def_readwrite("_bb2d_list", &Bubble3D::_bb2d_list)
+        .def("addBubble2D", [](Bubble3D& self, Bubble2D const& bb2d, int cam_id){
+            self.addBubble2D(bb2d, cam_id);
+        })
+        .def("addBubble2D", [](Bubble3D& self, std::vector<Bubble2D> const& bb2d_list, std::vector<int> const& camid_list){
+            self.addBubble2D(bb2d_list, camid_list);
+        })
+        .def("removeBubble2D", [](Bubble3D& self, int cam_id){
+            self.removeBubble2D(cam_id);
+        })
+        .def("removeBubble2D", [](Bubble3D& self, std::vector<int> const& camid_list){
+            self.removeBubble2D(camid_list);
+        })
+        .def("clearBubble2D", &Bubble3D::clearBubble2D)
+        .def("updateBubble2D", [](Bubble3D& self, Bubble2D const& bb2d, int cam_id){
+            self.updateBubble2D(bb2d, cam_id);
+        })
+        .def("updateBubble2D", [](Bubble3D& self, std::vector<Bubble2D> const& bb2d_list, std::vector<int> const& camid_list){
+            self.updateBubble2D(bb2d_list, camid_list);
+        })
+        .def("projectObject2D", &Bubble3D::projectObject2D)
+        .def("setRadius2D", &Bubble3D::setRadius2D)
+        .def("getBubble2D", [](Bubble3D& self, int cam_id){
+            Bubble2D bb2d;
+            self.getBubble2D(bb2d, cam_id);
+            return bb2d;
+        })
+        .def("saveObject3D", [](Bubble3D& self, std::string& file, int n_cam_all, bool is_append=true){
+            std::ofstream output(file, is_append ? std::ios::app : std::ios::out);
+            self.saveObject3D(output, n_cam_all);
+        }, py::arg("file"), py::arg("n_cam_all"), py::arg("is_append")=true)
+        .def("to_dict", [](Bubble3D const& self){
+            return py::dict(
+                "_pt_center"_a=self._pt_center, 
+                "_is_tracked"_a=self._is_tracked, 
+                "_n_2d"_a=self._n_2d, 
+                "_error"_a=self._error, 
+                "_camid_list"_a=self._camid_list, 
+                "_bb2d_list"_a=self._bb2d_list
+            );
+        })
+        .doc() = "Bubble3D class";
 }
