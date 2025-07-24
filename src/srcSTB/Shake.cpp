@@ -300,8 +300,7 @@ double Shake::gaussIntensity(int x, int y, Pt2D const& pt2d, std::vector<double>
     return std::max(0.0, value);
 }
 
-
-double Shake::shakeOneTracer(Tracer3D& tr3d, OTF const& otf, double delta, double score_old)
+ImgAugList Shake::calAugimg(Tracer3D& tr3d, OTF const& otf)
 {
     ImgAugList imgAug_list; // augmented image list
     
@@ -381,6 +380,12 @@ double Shake::shakeOneTracer(Tracer3D& tr3d, OTF const& otf, double delta, doubl
 
         imgAug_list.img_list.push_back(aug_img);
     }
+    return imgAug_list;
+}
+
+double Shake::shakeOneTracer(Tracer3D& tr3d, OTF const& otf, double delta, double score_old)
+{
+    ImgAugList imgAug_list = calAugimg(tr3d, otf);
 
     // Update the particle position, imgAug and search range
     double residue = updateTracer(tr3d, imgAug_list, otf, delta);
