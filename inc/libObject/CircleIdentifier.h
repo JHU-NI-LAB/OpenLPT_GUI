@@ -40,7 +40,7 @@ class CircleIdentifier {
 public:
     CircleIdentifier(Image const& img_input);
     ~CircleIdentifier();
-    void BubbleCenterAndSizeByCircle(std::vector<Pt2D>& center, std::vector<double>& radius, double rmin, double rmax, double sense);
+    std::vector<double> BubbleCenterAndSizeByCircle(std::vector<Pt2D>& center, std::vector<double>& radius, double rmin, double rmax, double sense);
  
 private:
     coder::array<unsigned char, 2U> img;

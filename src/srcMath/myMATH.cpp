@@ -28,6 +28,63 @@ std::vector<double> linspace (double min, double max, int n)
     return res;
 }
 
+// Bilinear interpolation
+double bilinearInterp(AxisLimit const& grid_limit, std::vector<double> const& value, std::vector<double> const& pt_vec)
+{
+    // [https://en.wikipedia.org/wiki/Bilinear_interpolation]
+    // value: 4
+    //  c_00 [x_min, y_min]
+    //  c_10 [x_max, y_min]
+    //  c_11 [x_max, y_max]
+    //  c_01 [x_min, y_max]
+    // pt_vec: 2
+    //  x, y
+    // Key requirement:
+    // If pt_vec is outside the limit:
+    //  set it as the value on the boundary 
+
+    double x_0 = grid_limit.x_min;
+    double x_1 = grid_limit.x_max;
+    double y_0 = grid_limit.y_min;
+    double y_1 = grid_limit.y_max;
+
+    double c_00 = value[0];
+    double c_10 = value[1];
+    double c_11 = value[2];
+    double c_01 = value[3];
+
+    double x = pt_vec[0];
+    double y = pt_vec[1];
+    double x_d = (x - x_0) / (x_1 - x_0);
+    double y_d = (y - y_0) / (y_1 - y_0);
+    if (x_d > 1+SMALLNUMBER || x_d < -SMALLNUMBER || 
+        y_d > 1+SMALLNUMBER || y_d < -SMALLNUMBER)
+    {
+        std::cerr << "myMATH::BilinearInterp error: out of range" 
+                  << "(x,y) = (" 
+                  << x << ","
+                  << y << ")"
+                  << "(xd,yd) = ("
+                  << x_d << ","
+                  << y_d << ")"
+                  << "(x0,y0) = ("
+                  << x_0 << ","
+                  << y_0 << ")"
+                  << "(x1,y1) = ("
+                  << x_1 << ","
+                  << y_1 << ")"
+                  << std::endl;
+        throw error_range;
+    }
+    x_d = std::max(0.0, std::min(1.0, x_d));
+    y_d = std::max(0.0, std::min(1.0, y_d));
+
+    double c_x0 = c_00 * (1 - x_d) + c_10 * x_d;
+    double c_x1 = c_01 * (1 - x_d) + c_11 * x_d;
+    double c = c_x0 * (1 - y_d) + c_x1 * y_d;
+    return c;
+}
+
 // Trilinear interpolation
 double triLinearInterp(AxisLimit const& grid_limit, std::vector<double> const& value, std::vector<double> const& pt_vec)
 {
@@ -460,6 +517,71 @@ std::vector<double> createGaussianKernel(int radius, double sigma)
     }
 
     return kernel;
+}
+
+// Calculate image cross correlation
+double imgCrossCorr(Image const& img, Image const& img_ref)
+{
+    int n_row = img.getDimRow();
+    int n_col = img.getDimCol();
+    int n = n_row * n_col;
+    if (n == 0) {
+        std::cerr << "myMATH::imgCrossCorr warning: "
+                  << "Image dimensions are zero!" 
+                  << std::endl;
+        return -std::numeric_limits<double>::infinity();
+    } 
+    if (n_row != img_ref.getDimRow() || n_col != img_ref.getDimCol())
+    {
+        std::cerr << "myMATH::imgCrossCorr warning: "
+                  << "Image dimensions do not match!" 
+                  << std::endl;
+        return -std::numeric_limits<double>::infinity();
+    }
+
+    double img_mean = 0;
+    double img_ref_mean = 0;
+    for (int i = 0; i < n; i++)
+    {
+        img_mean += img[i];
+        img_ref_mean += img_ref[i];
+    }
+    img_mean /= n;
+    img_ref_mean /= n;
+
+    double val = 0;
+    double img_var = 0;
+    double img_ref_var = 0;
+    for (int i = 0; i < n; i++)
+    {
+        img_var += (img[i] - img_mean) * (img[i] - img_mean);
+        img_ref_var += (img_ref[i] - img_ref_mean) * (img_ref[i] - img_ref_mean);
+        val += (img[i] - img_mean) * (img_ref[i] - img_ref_mean);
+    }
+    img_var = std::max(img_var, 0.0);
+    img_ref_var = std::max(img_ref_var, 0.0);
+    if (img_var > SMALLNUMBER && img_ref_var > SMALLNUMBER)
+    {
+        val /= std::sqrt(img_var * img_ref_var);
+    }
+    else if (img_var < SMALLNUMBER && img_ref_var < SMALLNUMBER)
+    {
+        val = 1.0; // both images are constant
+    }
+    else
+    {
+        val = 0.0;
+    }
+
+    // Clamp the value to the range [-1, 1]
+    val = std::clamp(val, -1.0, 1.0);
+    return val;
+}
+
+// Check whether an int belongs to a vector
+bool ismember (int id, std::vector<int> const& vec)
+{
+    return std::find(vec.begin(), vec.end(), id) != vec.end();
 }
 
 }

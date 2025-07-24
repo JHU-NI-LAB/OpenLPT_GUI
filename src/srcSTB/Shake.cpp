@@ -170,7 +170,6 @@ void Shake::shakeTracers(std::vector<Tracer3D>& tr3d_list, OTF const& otf, std::
 
     // remove ghost tracers
     findGhost(tr3d_list);
-    // removeGhostResidue(tr3d_list);
 
     // update residue image
     calResImg(tr3d_list, otf, imgOrig_list);
@@ -572,6 +571,7 @@ double Shake::updateTracer(Tracer3D& tr3d, ImgAugList& imgAug_list, OTF const& o
         }
         
         // update tr3d 2d match
+        tr3d_temp._pt_center[i] = array_list[min_id];
         tr3d._pt_center[i] = array_list[min_id];
         residue = residue_list[min_id];
         // tr3d.projectObject2D(_cam_list.useid_list, _cam_list.cam_list);

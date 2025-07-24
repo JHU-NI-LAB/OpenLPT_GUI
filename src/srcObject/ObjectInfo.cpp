@@ -199,15 +199,41 @@ void Bubble3D::updateBubble2D(std::vector<Bubble2D> const& bb2d_list, std::vecto
 
 void Bubble3D::projectObject2D(std::vector<int> const& camid_list, std::vector<Camera> const& cam_list_all)
 {
-    _n_2d = camid_list.size();
-    _camid_list = camid_list;
-    _bb2d_list.resize(_n_2d);
+    bool is_same_cam = (_camid_list == camid_list);
+    
+    if (is_same_cam) {
+        for (int i = 0; i < _n_2d; i ++) {
+            int cam_id = _camid_list[i];
+            _bb2d_list[i]._pt_center = cam_list_all[cam_id].project(_pt_center);
+        }
+    } else {
+        // save original radius
+        std::vector<double> r_orig_list(_n_2d, 0.0);
+        for (int i = 0; i < _n_2d; i ++) {
+            r_orig_list[i] = _bb2d_list[i]._r_px;
+        }
 
-    int cam_id;
-    for (int i = 0; i < _n_2d; i ++)
-    {
-        cam_id = _camid_list[i];
-        _bb2d_list[i]._pt_center = cam_list_all[cam_id].project(_pt_center);
+        // resize _bb2d_list
+        int n_2d_new = camid_list.size();
+        _bb2d_list.resize(n_2d_new);
+
+        // update 2d location and assign originalradius
+        for (int i = 0; i < n_2d_new; i ++) {
+            int cam_id = camid_list[i];
+            _bb2d_list[i]._pt_center = cam_list_all[cam_id].project(_pt_center);
+
+            // assign original radius
+            _bb2d_list[i]._r_px = 0;
+            for (int j = 0; j < _n_2d; j++) {
+                if (_camid_list[j] == cam_id) {
+                    _bb2d_list[i]._r_px = r_orig_list[j];
+                    break;
+                }
+            }
+        }
+
+        _n_2d = n_2d_new;
+        _camid_list = camid_list;
     }
 }
 
@@ -237,9 +263,73 @@ void Bubble3D::getBubble2D(Bubble2D& bb2d, int cam_id)
     }
 }
 
+bool Bubble3D::updateR3D(std::vector<Camera> const& cam_list_all, double ratio_thres, double tol3d) 
+{
+    if (_n_2d < 2) {
+        std::cerr << "Bubble3D::updateR3D: not enough 2D bubbles to update 3D radius" << std::endl;
+        return false;
+    }
+
+    // Calculate the radius from the 2D bubbles
+    std::vector<double> r3d_list(_n_2d, 0);
+    _r3d = 0;
+    Pt3D pt3d;
+    for (int i = 0; i < _n_2d; i ++) {
+        // transform 3d position to cam coordinate
+        int cam_id = _camid_list[i];
+        pt3d = cam_list_all[cam_id]._pinhole_param.r_mtx * _pt_center + cam_list_all[cam_id]._pinhole_param.t_vec;
+        
+        double dist2 = pt3d[0]*pt3d[0] + pt3d[1]*pt3d[1] + pt3d[2]*pt3d[2];
+        dist2 = std::max(0.0, dist2);
+        double r2 = _bb2d_list[i]._r_px * _bb2d_list[i]._r_px; 
+        double f2 = std::pow(cam_list_all[cam_id]._pinhole_param.cam_mtx(0,0), 2);
+
+        r3d_list[i] = std::sqrt(dist2 * r2 / (f2 + r2));
+        _r3d += r3d_list[i];
+    }
+    _r3d /= _n_2d;
+
+    for (int i = 0; i < _n_2d; i ++) {
+        double r3d_diff = std::fabs(r3d_list[i] - _r3d);
+        if (r3d_diff > ratio_thres * _r3d || 
+            r3d_diff > tol3d) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void Bubble3D::updateR2D(int cam_id, std::vector<Camera> const& cam_list_all) 
+{
+    for (int i = 0; i < _n_2d; i ++) {
+        if (_camid_list[i] == cam_id) {
+            Pt3D pt3d = cam_list_all[cam_id]._pinhole_param.r_mtx * _pt_center + cam_list_all[cam_id]._pinhole_param.t_vec;
+            double dist2 = pt3d[0]*pt3d[0] + pt3d[1]*pt3d[1] + pt3d[2]*pt3d[2];
+            dist2 = std::max(0.0, dist2);
+            double f = cam_list_all[cam_id]._pinhole_param.cam_mtx(0,0);
+            _bb2d_list[i]._r_px = f * _r3d / std::sqrt(dist2 - _r3d * _r3d);
+        }
+        break;
+    }
+}
+
+void Bubble3D::updateR2D(std::vector<Camera> const& cam_list_all) 
+{
+    Pt3D pt3d;
+    for (int i = 0; i < _n_2d; i ++) {
+        int cam_id = _camid_list[i];
+        pt3d = cam_list_all[cam_id]._pinhole_param.r_mtx * _pt_center + cam_list_all[cam_id]._pinhole_param.t_vec;
+        double dist2 = pt3d[0]*pt3d[0] + pt3d[1]*pt3d[1] + pt3d[2]*pt3d[2];
+        dist2 = std::max(0.0, dist2);
+        double f = cam_list_all[cam_id]._pinhole_param.cam_mtx(0,0);
+        _bb2d_list[i]._r_px = f * _r3d / std::sqrt(dist2 - _r3d * _r3d);
+    }
+}
+
 void Bubble3D::saveObject3D(std::ofstream& output, int n_cam_all) const
 {
-    output << _pt_center[0] << "," << _pt_center[1] << "," << _pt_center[2] << "," << _error << "," << _n_2d;
+    output << _pt_center[0] << "," << _pt_center[1] << "," << _pt_center[2] << "," << _error << "," << _r3d << "," << _n_2d;
     
     std::vector<double> pt2d_list(n_cam_all*3, IMGPTINIT);
     for (int i = 0; i < _n_2d; i ++)

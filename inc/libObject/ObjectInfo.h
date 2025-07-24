@@ -111,11 +111,12 @@ class Bubble3D : public Object3D
 public:
     int _n_2d = 0;
     double _error = 0; // [mm]
+    double _r3d = -1; // [mm]
     std::vector<int> _camid_list; // min id = 0
     std::vector<Bubble2D> _bb2d_list;
 
     Bubble3D () {};
-    Bubble3D (Bubble3D const& bubble3d) : Object3D(bubble3d), _n_2d(bubble3d._n_2d), _error(bubble3d._error), _camid_list(bubble3d._camid_list), _bb2d_list(bubble3d._bb2d_list) {};
+    Bubble3D (Bubble3D const& bubble3d) : Object3D(bubble3d), _n_2d(bubble3d._n_2d), _error(bubble3d._error), _r3d(bubble3d._r3d), _camid_list(bubble3d._camid_list), _bb2d_list(bubble3d._bb2d_list) {};
     Bubble3D (Pt3D const& pt_center) : Object3D(pt_center) {};
     ~Bubble3D () {};
 
@@ -142,6 +143,13 @@ public:
     void setRadius2D (std::vector<double> r_px_list);
 
     void getBubble2D (Bubble2D& bubble2d, int cam_id);
+
+    // update 3D bubble radius
+    bool updateR3D (std::vector<Camera> const& cam_list_all, double ratio_thres = 0.05, double tol3d = 100);
+
+    // update 2D bubble radius
+    void updateR2D (int cam_id, std::vector<Camera> const& cam_list_all);
+    void updateR2D (std::vector<Camera> const& cam_list_all);
 
     // save the 3D bubble to a file
     void saveObject3D (std::ofstream& output, int n_cam_all) const;

@@ -48,13 +48,14 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
             int cam_id_real = _cam_list.useid_list[i];
             int nrow = img_input[cam_id_real].getDimRow();
             int ncol = img_input[cam_id_real].getDimCol();
-            // double intensity_max = _cam_list.intensity_max[cam_id_real];
-            double intensity_max = 0;
-            for (int row_id = 0; row_id < nrow; row_id++) {
-                for (int col_id = 0; col_id < ncol; col_id++) {
-                    intensity_max = std::max(intensity_max, img_input[cam_id_real](row_id, col_id));
-                }
-            }
+            // TODO: not sure what is the best way to normalize the intensity
+            double intensity_max = _cam_list.intensity_max[cam_id_real];
+            // double intensity_max = 0;
+            // for (int row_id = 0; row_id < nrow; row_id++) {
+            //     for (int col_id = 0; col_id < ncol; col_id++) {
+            //         intensity_max = std::max(intensity_max, img_input[cam_id_real](row_id, col_id));
+            //     }
+            // }
 
             #pragma omp parallel for 
             for (int j = 0; j < n_select; j++) {

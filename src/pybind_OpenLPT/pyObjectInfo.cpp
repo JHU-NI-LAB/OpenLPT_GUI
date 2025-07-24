@@ -136,6 +136,15 @@ void init_ObjectInfo(py::module &m)
             self.getBubble2D(bb2d, cam_id);
             return bb2d;
         })
+        .def("updateR3D", [](Bubble3D& self, std::vector<Camera> const& cam_list_all, double ratio_thres, double tol3d){
+            return self.updateR3D(cam_list_all, ratio_thres, tol3d);
+        }, py::arg("cam_list_all"), py::arg("ratio_thres")=0.05, py::arg("tol3d")=100)
+        .def("updateR2D", [](Bubble3D& self, int cam_id, std::vector<Camera> const& cam_list_all){
+            self.updateR2D(cam_id, cam_list_all);
+        })
+        .def("updateR2D", [](Bubble3D& self, std::vector<Camera> const& cam_list_all){
+            self.updateR2D(cam_list_all);
+        })
         .def("saveObject3D", [](Bubble3D& self, std::string& file, int n_cam_all, bool is_append=true){
             std::ofstream output(file, is_append ? std::ios::app : std::ios::out);
             self.saveObject3D(output, n_cam_all);

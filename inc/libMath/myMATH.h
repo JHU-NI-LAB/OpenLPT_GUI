@@ -111,6 +111,9 @@ void isOutlier (std::vector<int>& judge, std::vector<T> const& nums)
 std::vector<double> linspace (double min, double max, int n);
 
 
+// Bilinear interpolation
+double bilinearInterp(AxisLimit const& grid_limit, std::vector<double> const& value, std::vector<double> const& pt_vec);
+
 // Trilinear interpolation
 double triLinearInterp(AxisLimit const& grid_limit, std::vector<double> const& value, std::vector<double> const& pt_vec);
 
@@ -503,8 +506,17 @@ bool isLocalMax (Matrix<T> const& mtx, int row_id, int col_id)
 // y = coeff[0] + coeff[1] * x + coeff[2] * x^2 + ...
 void polyfit (std::vector<double>& coeff, std::vector<double> const& x, std::vector<double> const& y, int order);
 
+
 // Create 1D Gaussian kernel
 std::vector<double> createGaussianKernel(int radius, double sigma);
+
+
+// Calculate image cross correlation
+double imgCrossCorr(Image const& img, Image const& img_ref);
+
+
+// Check whether an int belongs to a vector
+bool ismember (int id, std::vector<int> const& vec);
 
 }
 

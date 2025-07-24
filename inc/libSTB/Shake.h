@@ -10,6 +10,8 @@
 
 #include "Matrix.h"
 #include "ObjectInfo.h"
+#include "CircleIdentifier.h"
+#include "BubbleResize.h"
 #include "Camera.h"
 #include "OTF.h"
 #include "nanoflann.hpp"
@@ -45,8 +47,8 @@ public:
     // Run shake
     // if tri_only=true, only calculate residue images
     void runShake(std::vector<Tracer3D>& tr3d_list, OTF const& otf, std::vector<Image> const& imgOrig_list, bool tri_only=false);
+    void runShake(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only=false);
 
-    
 private:
     // INPUTS //
     CamList const& _cam_list; 
@@ -57,11 +59,16 @@ private:
     double _score_min; // Ghost threshold
     int _n_loop;       // Number of shake times
     int _n_thread = 0; // Number of threads
+    double _SCORE_MISMATCH = -10;
 
 
     //                //
     // MAIN FUNCTIONS //
     //                //
+    // Remove negative pxiel and set them as zeros, this function is used to prepare residual image for the next run of IPR.
+    void absResImg ();
+
+    // Tracers //
 
     void shakeTracers(std::vector<Tracer3D>& tr3d_list, OTF const& otf, std::vector<Image> const& imgOrig_list, bool tri_only=false);
 
@@ -72,15 +79,27 @@ private:
     // Remove all tracked particles from image to get residual image.
     void calResImg(std::vector<Tracer3D> const& tr3d_list, OTF const& otf, std::vector<Image> const& imgOrig_list);
 
-    // Remove negative pxiel and set them as zeros, this function is used to prepare residual image for the next run of IPR.
-    void absResImg ();
-
     // Remove ghost particles.
     void findGhost(std::vector<Tracer3D>& tr3d_list);
     void removeGhostResidue(std::vector<Tracer3D>& tr3d_list);
     
-    // TODO: use kd tree for checking
     void checkReaptedObj(std::vector<Tracer3D> const& tr3d_list, double tol_3d);
+
+    // Bubbles //
+
+    void shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only=false);
+
+    // Procedure for each shake
+    double shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_list, std::vector<double> const& intRef_list, std::vector<Image> const& imgOrig_list, double delta, double score_old);
+
+    // Remove all tracked particles from image to get residual image.
+    void calResImg(std::vector<Bubble3D> const& bb3d_list, std::vector<Image> const& imgRef_list, std::vector<Image> const& imgOrig_list);
+
+    // Remove ghost particles.
+    void findGhost(std::vector<Bubble3D>& bb3d_list);
+
+    void checkReaptedObj(std::vector<Bubble3D> const& bb3d_list, double tol_3d);
+
 
     //                     //
     // AUXILIARY FUNCTIONS //
@@ -90,6 +109,8 @@ private:
     // id: cam used id, not real cam id
     PixelRange findRegion (int id, double y, double x, double half_width_px); // a square region
     
+    // Tracers // 
+
     // Gaussian intensity for particles
     double gaussIntensity (int x, int y, Pt2D const& pt2d, std::vector<double> const& otf_param); // (x,y)=(col,row)
 
@@ -107,6 +128,19 @@ private:
     // Calculate intensity for shaken particles
     double calTracerScore (Tracer3D const& tr3d, ImgAugList const& imgAug_list, OTF const& otf, double score);
 
+    // Bubbles // 
+
+    bool isCamValidForShaking (int cam_id, PixelRange const& region, Image const& imgRef, double intRef, Image const& imgOrig, Bubble2D const& bb2d);
+
+    double updateBubble (Bubble3D& bb3d, std::vector<int>& cam_useid_mismatch, std::vector<Image> const& imgRef_list, ImgAugList& imgAug_list, std::vector<Image>& corr_map_list, double delta);
+
+    std::pair<double, std::vector<double>> calBubbleResidue (std::vector<Image>& corr_map_list, Bubble3D const& bb3d, std::vector<int> const& cam_useid_mismatch, ImgAugList const& imgAug_list, std::vector<Image> const& imgRef_list);
+
+    double imgCrossCorr (Image const& imgAug, PixelRange const& region, Image const& imgRef, double intMax, double center_x, double center_y, double r);
+
+    double getCorrInterp(Image& corr_map, int x, int y, double r_px, Image const& imgAug, PixelRange const& region, Image const& imgRef, double intMax);
+
+    double calBubbleScore (Bubble3D const& bb3d, ImgAugList const& imgAug_list, std::vector<int> const& cam_useid_mismatch, double score);
 };
 
 #endif // !SHAKE_H

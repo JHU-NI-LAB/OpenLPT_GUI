@@ -75,17 +75,7 @@ static double rt_hypotd_snf(double u0, double u1)
     return y;
 }
 
-//
-// Arguments    : const coder::array<double, 2U> &img
-//                double rmin
-//                double rmax
-//                double sense
-//                coder::array<double, 2U> &centers
-//                coder::array<double, 2U> &radiis
-//                coder::array<double, 2U> &metric
-// Return Type  : void
-//
-void CircleIdentifier::BubbleCenterAndSizeByCircle(
+std::vector<double> CircleIdentifier::BubbleCenterAndSizeByCircle(
     std::vector<Pt2D> &center,
     std::vector<double> &radius,
     double rmin, double rmax, double sense)
@@ -540,12 +530,17 @@ void CircleIdentifier::BubbleCenterAndSizeByCircle(
 
   // output
   int n_center = *centers.size();
+  std::vector<double> metric_out(n_center);
+  center = std::vector<Pt2D>(n_center);
+  radius = std::vector<double>(n_center);
   for (int i = 0; i < n_center; i++)
   {
-    Pt2D bubble(centers[i] - 1, centers[n_center + i] - 1);
-    center.push_back(bubble);
-    radius.push_back(radii[i]);
+    center[i][0] = centers[i] - 1;
+    center[i][1] = centers[n_center + i] - 1;
+    radius[i] = radii[i];
+    metric_out[i] = metrics[i];
   }
+  return metric_out;
 }
 
 //

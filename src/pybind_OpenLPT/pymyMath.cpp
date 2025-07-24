@@ -19,6 +19,7 @@ void init_myMath(py::module& m)
     
     m.def("linspace", &myMATH::linspace, "Create a linearly spaced vector<double>");
     
+    m.def("bilinearInterp", &myMATH::bilinearInterp, "Perform bilinear interpolation for vector<double>");
     m.def("triLinearInterp", &myMATH::triLinearInterp, "Perform trilinear interpolation for vector<double>");
     
     m.def("createUnitVector", [](Pt3D const& pt1, Pt3D const& pt2){
@@ -172,4 +173,8 @@ void init_myMath(py::module& m)
     }, "Polynomial fitting for vector<double>");
 
     m.def("createGaussianKernel", &myMATH::createGaussianKernel, "Create a Gaussian kernel for 1D convolution");
+
+    m.def("imgCrossCorr", &myMATH::imgCrossCorr, "Calculate image cross correlation");
+
+    m.def("ismember", &myMATH::ismember, "Check whether an int belongs to a vector");
 }
