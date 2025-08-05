@@ -19,6 +19,7 @@
 #include "StereoMatch.h"
 #include "OTF.h"
 #include "Shake.h"
+#include "ShakeDebug.cpp"
 #include "IPR.h"
 #include "PredField.h"
 #include "Track.h"

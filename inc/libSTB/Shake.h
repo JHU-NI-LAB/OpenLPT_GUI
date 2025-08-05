@@ -12,6 +12,7 @@
 #include "ObjectInfo.h"
 #include "CircleIdentifier.h"
 #include "BubbleResize.h"
+#include "BubbleRefImg.h"
 #include "Camera.h"
 #include "OTF.h"
 #include "nanoflann.hpp"
@@ -47,7 +48,7 @@ public:
     // Run shake
     // if tri_only=true, only calculate residue images
     void runShake(std::vector<Tracer3D>& tr3d_list, OTF const& otf, std::vector<Image> const& imgOrig_list, bool tri_only=false);
-    void runShake(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only=false);
+    void runShake(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, BubbleRefImg const& imgRef_list, bool tri_only=false);
 
 private:
     // INPUTS //
@@ -84,19 +85,22 @@ private:
 
     // Remove ghost particles.
     void findGhost(std::vector<Tracer3D>& tr3d_list);
-    void removeGhostResidue(std::vector<Tracer3D>& tr3d_list);
+    // void removeGhostResidue(std::vector<Tracer3D>& tr3d_list);
     
     void checkRepeatedObj(std::vector<Tracer3D> const& tr3d_list, double tol_3d);
 
     // Bubbles //
 
-    void shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only=false);
+    void shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, BubbleRefImg const& imgRef_list, bool tri_only=false);
 
     // Procedure for each shake
-    double shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_list, std::vector<double> const& intRef_list, std::vector<Image> const& imgOrig_list, double delta, double score_old);
+    double shakeOneBubble(Bubble3D& bb3d, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list, double delta, double score_old);
 
     // Remove all tracked particles from image to get residual image.
-    void calResImg(std::vector<Bubble3D> const& bb3d_list, std::vector<Image> const& imgRef_list, std::vector<Image> const& imgOrig_list);
+    void calResImg(std::vector<Bubble3D> const& bb3d_list, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list);
+
+    // calculate augmented images for a bubble
+    ImgAugList calAugimg(Bubble3D& bb3d, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list, std::vector<Image>& corr_map_list, std::vector<int>& cam_useid_mismatch);
 
     // Remove ghost particles.
     void findGhost(std::vector<Bubble3D>& bb3d_list);
@@ -133,17 +137,19 @@ private:
 
     // Bubbles // 
 
-    bool isCamValidForShaking (int cam_id, PixelRange const& region, Image const& imgRef, double intRef, Image const& imgOrig, Bubble2D const& bb2d);
+    bool isCamValidForShaking (int cam_id, PixelRange const& region, BubbleRefImg const& imgRef_list, Image const& imgOrig, Bubble2D const& bb2d);
 
-    double updateBubble (Bubble3D& bb3d, std::vector<int>& cam_useid_mismatch, std::vector<Image> const& imgRef_list, ImgAugList& imgAug_list, std::vector<Image>& corr_map_list, double delta);
+    double updateBubble (Bubble3D& bb3d, std::vector<int>& cam_useid_mismatch, BubbleRefImg const& imgRef_list, ImgAugList& imgAug_list, std::vector<Image>& corr_map_list, double delta);
 
-    std::pair<double, std::vector<double>> calBubbleResidue (std::vector<Image>& corr_map_list, Bubble3D const& bb3d, std::vector<int> const& cam_useid_mismatch, ImgAugList const& imgAug_list, std::vector<Image> const& imgRef_list);
+    std::pair<double, std::vector<double>> calBubbleResidue (std::vector<Image>& corr_map_list, Bubble3D const& bb3d, std::vector<int> const& cam_useid_mismatch, ImgAugList const& imgAug_list, BubbleRefImg const& imgRef_list);
 
     double imgCrossCorr (Image const& imgAug, PixelRange const& region, Image const& imgRef, double intMax, double center_x, double center_y, double r);
 
     double getCorrInterp(Image& corr_map, int x, int y, double r_px, Image const& imgAug, PixelRange const& region, Image const& imgRef, double intMax);
 
     double calBubbleScore (Bubble3D const& bb3d, ImgAugList const& imgAug_list, std::vector<int> const& cam_useid_mismatch, double score);
+
+    friend class ShakeDebug;
 };
 
 #endif // !SHAKE_H

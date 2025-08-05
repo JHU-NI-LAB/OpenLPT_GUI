@@ -14,12 +14,24 @@
 class BubbleRefImg {
 public:
     // user needs to make sure cam_list.useid_list is well defined
-    BubbleRefImg(CamList const& cam_list) : _cam_list(cam_list), _n_cam_used(_cam_list.useid_list.size()) {};
+    BubbleRefImg(CamList const& cam_list) : _cam_list(cam_list){};
+
     ~BubbleRefImg() {};
-    bool GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres = 6, int n_bb_thres = 5);
+
+    bool GetBubbleRefImg(std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres = 6, int n_bb_thres = 5);
+
+    const Image& operator[](int camID) const{
+        return img_Ref_list[camID];
+    };
+
+    double getIntRef(int camID) const {
+        return intRef_list[camID];
+    };
+
 private:
     CamList const& _cam_list;
-    int _n_cam_used;
+    std::vector<Image> img_Ref_list; // reference images for each camera
+    std::vector<double> intRef_list;  // average intensity of reference images for each camera
 };
 
 

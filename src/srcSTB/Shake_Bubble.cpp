@@ -7,12 +7,12 @@
 
 // Bubbles //
 
-void Shake::runShake(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only)
+void Shake::runShake(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, BubbleRefImg const& imgRef_list, bool tri_only)
 {
     shakeBubbles(bb3d_list, imgOrig_list, imgRef_list, tri_only);
 }
 
-void Shake::shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only)
+void Shake::shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> const& imgOrig_list, BubbleRefImg const& imgRef_list, bool tri_only)
 {
     // update tr2d position
     int n_bb3d = bb3d_list.size();
@@ -47,33 +47,6 @@ void Shake::shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> co
         absResImg();
         return;
     }
-
-    // Calculate average intensity of reference image list
-    std::vector<double> intRef_list(imgRef_list.size(), 0);
-    for (int i = 0; i < imgRef_list.size(); i++)
-    {
-        int n_row_ref = imgRef_list[i].getDimRow();
-        int n_col_ref = imgRef_list[i].getDimCol();
-        int n_sum = 0;
-        double xc = (n_col_ref - 1) / 2.0;
-        double yc = (n_row_ref - 1) / 2.0;
-        double r = n_col_ref / 2.0;
-        for (int row = 0; row < n_row_ref; row++)
-        {
-            for (int col = 0; col < n_col_ref; col++)
-            {
-                double dist = std::sqrt(std::pow(row - yc, 2) + std::pow(col - xc, 2));
-                if (dist < r) {
-                    intRef_list[i] += imgRef_list[i](row, col);
-                    n_sum++;
-                }
-            }
-        }
-        if (n_sum > 0) {
-            intRef_list[i] /= n_sum;
-        }
-    }
-
 
     // Initialize score list
     _score_list.resize(n_bb3d);
@@ -111,7 +84,7 @@ void Shake::shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> co
         {
             if (_score_list[i] > _SCORE_MISMATCH + 1)
             {
-                _score_list[i] = shakeOneBubble(bb3d_list[i], imgRef_list, intRef_list, imgOrig_list, delta, _score_list[i]);
+                _score_list[i] = shakeOneBubble(bb3d_list[i], imgRef_list, imgOrig_list, delta, _score_list[i]);
             }
         }
         
@@ -127,7 +100,7 @@ void Shake::shakeBubbles(std::vector<Bubble3D>& bb3d_list, std::vector<Image> co
     absResImg();
 }
 
-void Shake::calResImg(std::vector<Bubble3D> const& bb3d_list, std::vector<Image> const& imgRef_list, std::vector<Image> const& imgOrig_list)
+void Shake::calResImg(std::vector<Bubble3D> const& bb3d_list, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list)
 {
     int n_bb3d = bb3d_list.size();
     int cam_id, row_min, row_max, col_min, col_max, img_size;
@@ -196,15 +169,12 @@ void Shake::calResImg(std::vector<Bubble3D> const& bb3d_list, std::vector<Image>
     }
 }
 
-double Shake::shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_list, std::vector<double> const& intRef_list, std::vector<Image> const& imgOrig_list, double delta, double score_old)
+ImgAugList Shake::calAugimg(Bubble3D& bb3d, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list, std::vector<Image>& corr_map_list, std::vector<int>& cam_useid_mismatch)
 {
     ImgAugList imgAug_list; // augmented image list
-    std::vector<Image> corr_map_list; // cross-correlation map for each camera
-    
     // check if the camera is valid for shaking 
     //  and calculate the augmented image
     int ratio_region = 2;
-    std::vector<int> cam_useid_mismatch;
     for (int id = 0; id < _n_cam_use; id ++)
     {
         int cam_id = _cam_list.useid_list[id];
@@ -218,7 +188,7 @@ double Shake::shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_li
 
         // check if this cam is valid for shaking
         bool is_valid = isCamValidForShaking(
-            cam_id, region, imgRef_list[cam_id], intRef_list[cam_id], imgOrig_list[cam_id], bb3d._bb2d_list[id]
+            cam_id, region, imgRef_list, imgOrig_list[cam_id], bb3d._bb2d_list[id]
         );
         if (!is_valid)
         {
@@ -258,7 +228,20 @@ double Shake::shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_li
         imgAug_list.img_list.push_back(aug_img);
         corr_map_list.push_back(Image(n_row, n_col, CORR_INIT));
     }
+    return imgAug_list;
+}
 
+double Shake::shakeOneBubble(Bubble3D& bb3d, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list, double delta, double score_old)
+{
+    std::vector<Image> corr_map_list; // cross-correlation map for each camera
+    std::vector<int> cam_useid_mismatch;
+    ImgAugList imgAug_list = calAugimg(
+        bb3d, 
+        imgRef_list, 
+        imgOrig_list, 
+        corr_map_list, 
+        cam_useid_mismatch); // augmented image list
+    
     int n_cam_mismatch = cam_useid_mismatch.size();
     if (n_cam_mismatch > _n_cam_use - 2) {
         return _SCORE_MISMATCH;
@@ -282,7 +265,7 @@ double Shake::shakeOneBubble(Bubble3D& bb3d, std::vector<Image> const& imgRef_li
     return bb_score;
 }
 
-bool Shake::isCamValidForShaking(int cam_id, PixelRange const& region, Image const& imgRef, double intRef, Image const& imgOrig, Bubble2D const& bb2d)
+bool Shake::isCamValidForShaking(int cam_id, PixelRange const& region, BubbleRefImg const& imgRef_list, Image const& imgOrig, Bubble2D const& bb2d)
 {
     // check if the camera is valid for shaking
     // 1. check if the region is valid
@@ -370,6 +353,7 @@ bool Shake::isCamValidForShaking(int cam_id, PixelRange const& region, Image con
         // orig: [1.5, 0.5]
         // if (int_orig > intRef * 1.5 || 
         //     int_orig < intRef * 0.5)
+        double intRef = imgRef_list.getIntRef(cam_id);
         if (int_orig > intRef * 1.2 || 
             int_orig < intRef * 0.8)
         {
@@ -394,7 +378,7 @@ bool Shake::isCamValidForShaking(int cam_id, PixelRange const& region, Image con
     return true;
 }
 
-double Shake::updateBubble(Bubble3D& bb3d, std::vector<int> & cam_useid_mismatch, std::vector<Image> const& imgRef_list, ImgAugList& imgAug_list, std::vector<Image>& corr_map_list, double delta)
+double Shake::updateBubble(Bubble3D& bb3d, std::vector<int> & cam_useid_mismatch, BubbleRefImg const& imgRef_list, ImgAugList& imgAug_list, std::vector<Image>& corr_map_list, double delta)
 {
     std::vector<double> delta_list(3);
     delta_list[0] = - delta;
@@ -567,7 +551,7 @@ double Shake::updateBubble(Bubble3D& bb3d, std::vector<int> & cam_useid_mismatch
 }
 
 // residue = 1 - corr: [0, 2], smaller is better
-std::pair<double, std::vector<double>> Shake::calBubbleResidue(std::vector<Image>& corr_map_list, Bubble3D const& bb3d, std::vector<int> const& cam_useid_mismatch, ImgAugList const& imgAug_list, std::vector<Image> const& imgRef_list)
+std::pair<double, std::vector<double>> Shake::calBubbleResidue(std::vector<Image>& corr_map_list, Bubble3D const& bb3d, std::vector<int> const& cam_useid_mismatch, ImgAugList const& imgAug_list, BubbleRefImg const& imgRef_list)
 {
     int n_cam_match = _n_cam_use - cam_useid_mismatch.size();
     std::vector<double> residue_list(n_cam_match, 0);
@@ -699,6 +683,9 @@ double Shake::imgCrossCorr(Image const& imgAug, PixelRange const& region, Image 
     {
         for (int y_id = y_min; y_id < y_max; y_id++)
         {
+            // double dist2 = std::pow(x_id - xc, 2) + std::pow(y_id - yc, 2);
+            // if (dist2 > std::pow(r_int,2)) continue;
+            
             int_aug_avg += imgAug(y_id, x_id);
             int dx = std::round(center_ref + x_id - xc);
             int dy = std::round(center_ref + y_id - yc);
@@ -717,6 +704,9 @@ double Shake::imgCrossCorr(Image const& imgAug, PixelRange const& region, Image 
     {
         for (int y_id = y_min; y_id < y_max; y_id++)
         {
+            // double dist2 = std::pow(x_id - xc, 2) + std::pow(y_id - yc, 2);
+            // if (dist2 > std::pow(r_int,2)) continue;
+
             int dx = std::round(center_ref + x_id - xc);
             int dy = std::round(center_ref + y_id - yc);
             corr += (imgAug(y_id, x_id) - int_aug_avg) * (img_ref(dy, dx) - int_ref_avg);

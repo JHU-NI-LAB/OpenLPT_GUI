@@ -110,6 +110,7 @@ void init_ObjectInfo(py::module &m)
         .def_readwrite("_error", &Bubble3D::_error)
         .def_readwrite("_camid_list", &Bubble3D::_camid_list)
         .def_readwrite("_bb2d_list", &Bubble3D::_bb2d_list)
+        .def_readwrite("_r3d", &Bubble3D::_r3d)
         .def("addBubble2D", [](Bubble3D& self, Bubble2D const& bb2d, int cam_id){
             self.addBubble2D(bb2d, cam_id);
         })

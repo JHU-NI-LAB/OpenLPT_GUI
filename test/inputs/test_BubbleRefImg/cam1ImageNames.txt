@@ -1,1 +1,1 @@
-cam1frame000000.tif
+cam1frame0.tiff

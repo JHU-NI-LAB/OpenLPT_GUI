@@ -50,6 +50,9 @@ target_link_libraries(OTF PUBLIC Matrix myMath)
 add_library(Shake SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/Shake.cpp ${CMAKE_HOME_DIRECTORY}/src/srcSTB/Shake_Bubble.cpp)
 target_link_libraries(Shake PUBLIC Matrix myMath ObjectInfo CircleIdentifier BubbleResize Camera OTF)
 
+add_library(ShakeDebug SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/ShakeDebug.cpp)
+target_link_libraries(ShakeDebug PUBLIC Shake)
+
 add_library(IPR SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/IPR.hpp)
 set_target_properties(IPR PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(IPR PUBLIC Matrix Camera ObjectInfo ObjectFinder StereoMatch Shake OTF)

@@ -1,13 +1,17 @@
 #include "BubbleRefImg.h"
 
-bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres, int n_bb_thres) {
+bool BubbleRefImg::GetBubbleRefImg(std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres, int n_bb_thres) {
+    img_Ref_list.clear();
+    intRef_list.clear();
+
     bool is_valid = true;
     int n_bb3d = bb3d_list.size();
+    int n_cam_used = _cam_list.useid_list.size();
 
     std::vector<int> is_select(n_bb3d, 1);
     std::vector<int> id_select;
     for (int i = 0; i < n_bb3d; i++) {
-        for (int j = 0; j < _n_cam_used; j++) {
+        for (int j = 0; j < n_cam_used; j++) {
             if (bb3d_list[i]._bb2d_list[j]._r_px <= r_thres) {
                 is_select[i] = 0;
                 break;
@@ -21,8 +25,8 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
 
     if (n_select > n_bb_thres) {
         // obtain the maximum bubble diameter 
-        std::vector<double> dia_ref(_n_cam_used, 0);
-        for (int i = 0; i < _n_cam_used; i++) {
+        std::vector<double> dia_ref(n_cam_used, 0);
+        for (int i = 0; i < n_cam_used; i++) {
             double dia_max = 0;
             // #pragma omp parallel for reduction(max:dia_max)
             for (int j = 0; j < n_select; j++) {
@@ -33,13 +37,15 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
         }
 
         // initialize the bubble reference image
-        for (int i = 0; i < _n_cam_used; i++) {
+        for (int i = 0; i < n_cam_used; i++) {
             int npix = std::round(dia_ref[i]);
-            img_out.push_back(Image(npix, npix, 0.0)); 
+            // img_out.push_back(Image(npix, npix, 0.0)); 
+            img_Ref_list.push_back(Image(npix, npix, 0.0));
+            intRef_list.push_back(0.0);
         }
 
         // generate bubble reference images
-        for (int i = 0; i < _n_cam_used; i++) {
+        for (int i = 0; i < n_cam_used; i++) {
             int npix = std::round(dia_ref[i]);
             std::vector<Image> bb_img_i(n_select, Image(npix, npix, 0.0));
             std::vector<double> max_intensity(n_select, 0.0);
@@ -148,12 +154,35 @@ bool BubbleRefImg::GetBubbleRefImg(std::vector<Image>& img_out, std::vector<Bubb
                     int n_avg = 0;
                     for (int k = 0; k < n_select; k++) {
                         if (max_intensity[k] > mean_int * 0.8) {
-                            img_out[i](y_id, x_id) += bb_img_i[k](y_id, x_id);
+                            // img_out[i](y_id, x_id) += bb_img_i[k](y_id, x_id);
+                            img_Ref_list[i](y_id, x_id) += bb_img_i[k](y_id, x_id);
                             n_avg++; 
                         }
                     }
-                    img_out[i](y_id, x_id) /= n_avg; 
+                    // img_out[i](y_id, x_id) /= n_avg;
+                    img_Ref_list[i](y_id, x_id) /= n_avg;  
                 }
+            }
+
+            int n_row_ref = img_Ref_list[i].getDimRow();
+            int n_col_ref = img_Ref_list[i].getDimCol();
+            int n_sum = 0;
+            double xc = (n_col_ref - 1) / 2.0;
+            double yc = (n_row_ref - 1) / 2.0;
+            double r = n_col_ref / 2.0;
+            for (int row = 0; row < n_row_ref; row++)
+            {
+                for (int col = 0; col < n_col_ref; col++)
+                {
+                    double dist = std::sqrt(std::pow(row - yc, 2) + std::pow(col - xc, 2));
+                    if (dist < r) {
+                        intRef_list[i] += img_Ref_list[i](row, col);
+                        n_sum++;
+                    }
+                }
+            }
+            if (n_sum > 0) {
+                intRef_list[i] /= n_sum;
             }
         }
     } else {

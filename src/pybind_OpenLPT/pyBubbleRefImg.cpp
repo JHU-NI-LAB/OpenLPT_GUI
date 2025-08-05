@@ -11,10 +11,17 @@ void init_BubbleRefImg(py::module &m)
 
     py::class_<BubbleRefImg>(m, "BubbleRefImg")
         .def(py::init<CamList const&>())
-        .def("GetBubbleRefImg", [](BubbleRefImg& self, std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres, int n_bb_thres) {
-            std::vector<Image> img_out;
-            bool is_valid = self.GetBubbleRefImg(img_out, bb3d_list, bb2d_list_all, img_input, r_thres, n_bb_thres);
-            return std::make_pair(is_valid, img_out);
-        }, py::arg("bb3d_list"), py::arg("bb2d_list_all"), py::arg("img_input"), py::arg("r_thres")=6, py::arg("n_bb_thres")=5)
+        .def("GetBubbleRefImg", &BubbleRefImg::GetBubbleRefImg, 
+             py::arg("bb3d_list"), 
+             py::arg("bb2d_list_all"), 
+             py::arg("img_input"), 
+             py::arg("r_thres")=6, 
+             py::arg("n_bb_thres")=5)
+        // .def("GetBubbleRefImg", [](BubbleRefImg& self, std::vector<Bubble3D> const& bb3d_list, std::vector<std::vector<Bubble2D>> const& bb2d_list_all, std::vector<Image> const& img_input, double r_thres, int n_bb_thres ) {
+        //     bool is_valid = self.GetBubbleRefImg(bb3d_list, bb2d_list_all, img_input, r_thres, n_bb_thres);
+        //     return is_valid;
+        // }, py::arg("bb3d_list"), py::arg("bb2d_list_all"), py::arg("img_input"), py::arg("r_thres")=6, py::arg("n_bb_thres")=5)
+        .def("__getitem__", [](BubbleRefImg& self, int camID) {return self[camID];})
+        .def("getIntRef", &BubbleRefImg::getIntRef, py::arg("camID"))
         .doc() = "BubbleRefImg class";
 }

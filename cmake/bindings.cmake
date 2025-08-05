@@ -40,6 +40,7 @@ set_property(TARGET bindStereoMatch PROPERTY LINKER_LANGUAGE CXX)
 add_library(bindOTF STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/OTF.cpp)
 
 add_library(bindShake STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/Shake.cpp ${CMAKE_SOURCE_DIR}/src/srcSTB/Shake_Bubble.cpp)
+add_library(bindShakeDebug STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/ShakeDebug.cpp)
 
 add_library(bindIPR INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/IPR.hpp)
 set_property(TARGET bindIPR PROPERTY LINKER_LANGUAGE CXX)
@@ -75,6 +76,7 @@ set(BINDINGS_LIB
     bindStereoMatch
     bindOTF
     bindShake
+    bindShakeDebug
     bindIPR
     bindPredField
     bindTrack

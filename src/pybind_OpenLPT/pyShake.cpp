@@ -19,7 +19,7 @@ void init_Shake(py::module& m)
             self.runShake(tr3d_list_shake, otf, imgOrig_list, tri_only);
             return tr3d_list_shake;
         }, py::arg("obj3d_list"), py::arg("otf"), py::arg("imgOrig_list"), py::arg("tri_only")=false)
-        .def("runShake", [](Shake& self, std::vector<Bubble3D>const& obj3d_list, std::vector<Image> const& imgOrig_list, std::vector<Image> const& imgRef_list, bool tri_only){
+        .def("runShake", [](Shake& self, std::vector<Bubble3D>const& obj3d_list, std::vector<Image> const& imgOrig_list, BubbleRefImg const& imgRef_list, bool tri_only){
             std::vector<Bubble3D> bb3d_list_shake(obj3d_list);
             self.runShake(bb3d_list_shake, imgOrig_list, imgRef_list, tri_only);
             return bb3d_list_shake;
@@ -36,4 +36,40 @@ void init_Shake(py::module& m)
             );
         })
         .doc() = "Shake class";
+    
+    
+    // Debug-only binding begins here
+    m.def("absResImg_debug", &ShakeDebug::absResImg);
+    m.def("shakeTracers_debug", &ShakeDebug::shakeTracers);
+    m.def("shakeOneTracer_debug", &ShakeDebug::shakeOneTracer);
+    m.def("shakeOneTracerGrad_debug", &ShakeDebug::shakeOneTracerGrad);
+    m.def("calResImgTracer_debug", &ShakeDebug::calResImgTracer);
+    m.def("calAugimgTracer_debug", &ShakeDebug::calAugimgTracer);
+    m.def("findGhostTracer_debug", &ShakeDebug::findGhostTracer);
+    m.def("checkRepeatedObjTracer_debug", &ShakeDebug::checkRepeatedObjTracer);
+
+    m.def("shakeBubbles_debug", &ShakeDebug::shakeBubbles);
+    m.def("shakeOneBubble_debug", &ShakeDebug::shakeOneBubble);
+    // m.def("calResImgBubble_debug", &ShakeDebug::calResImgBubble);
+    m.def("calResImgBubble_debug", [](Shake& s, std::vector<Bubble3D> const& bb3d_list, BubbleRefImg const& imgRef_list, std::vector<Image> const& imgOrig_list) {
+        ShakeDebug sb;
+        return sb.calResImgBubble(s, bb3d_list, imgRef_list, imgOrig_list);
+    });
+    m.def("calAugimgBubble_debug", &ShakeDebug::calAugimgBubble);
+    m.def("findGhostBubble_debug", &ShakeDebug::findGhostBubble);
+    m.def("checkRepeatedObjBubble_debug", &ShakeDebug::checkRepeatedObjBubble);
+
+    m.def("findRegion_debug", &ShakeDebug::findRegion);
+    m.def("gaussIntensity_debug", &ShakeDebug::gaussIntensity);
+    m.def("calPointResidue_debug", &ShakeDebug::calPointResidue);
+    m.def("updateTracer_debug", &ShakeDebug::updateTracer);
+    m.def("updateTracerGrad_debug", &ShakeDebug::updateTracerGrad);
+    m.def("updateImgAugList_debug", &ShakeDebug::updateImgAugList);
+    m.def("calTracerScore_debug", &ShakeDebug::calTracerScore);
+    m.def("isCamValidForShaking_debug", &ShakeDebug::isCamValidForShaking);
+    m.def("updateBubble_debug", &ShakeDebug::updateBubble);
+    m.def("calBubbleResidue_debug", &ShakeDebug::calBubbleResidue);
+    m.def("imgCrossCorr_debug", &ShakeDebug::imgCrossCorr);
+    m.def("getCorrInterp_debug", &ShakeDebug::getCorrInterp);
+    m.def("calBubbleScore_debug", &ShakeDebug::calBubbleScore);
 }
