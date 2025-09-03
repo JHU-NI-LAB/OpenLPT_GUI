@@ -1,91 +1,82 @@
-cmake_minimum_required(VERSION 3.15...3.27)  # CMake version check
+cmake_minimum_required(VERSION 3.15...3.27)
 
-project(OpenLPT)  
-set(CMAKE_CXX_STANDARD 20)  
+# ---- Project ----
+project(OpenLPT VERSION 0.1.0 LANGUAGES C CXX)
 
+# Require C++20 project-wide (targets may override if needed)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# set(CMAKE_C_COMPILER   "D:/msys2/mingw64/bin/gcc.exe")
-# set(CMAKE_CXX_COMPILER "D:/msys2/mingw64/bin/g++.exe")
+# Export compile_commands.json for IDEs (clangd, VSCode, etc.)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# set(CMAKE_BUILD_TYPE "Debug")
-# set(CMAKE_BUILD_TYPE "Release")
+# Default build type for single-config generators (Makefiles/Ninja)
+if (NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
+# Toggle: build Python bindings via pybind11 (OFF = native C++ build)
+option(PYOPENLPT "Build Python bindings (pybind11)" OFF)
 
-set(CMAKE_C_FLAGS_DEBUG     "${CMAKE_C_FLAGS_DEBUG}     -O0 -Wall -g -ggdb")
-set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   -O0 -Wall -g -ggdb")
-set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE}   -O3 -Wall         ")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -Wall         ")
+# OpenMP: detect here; actual linking is per-target in module files
+find_package(OpenMP REQUIRED COMPONENTS CXX)
+if (OpenMP_CXX_FOUND)
+  message(STATUS "OpenMP CXX FOUND")
+endif()
 
-# Add executable target with source files listed in SOURCE_FILES variable
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libtiff")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/nanoflann")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libMath")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcMath")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libObject")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libObject/Sphere")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libObject/BubbleCenterAndSizeByCircle")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libObject/BubbleResize")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcObject")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcObject/Sphere")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleCenterAndSizeByCircle")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleResize")
-include_directories("${CMAKE_HOME_DIRECTORY}/inc/libSTB")
-include_directories("${CMAKE_HOME_DIRECTORY}/src/srcSTB")
+# -------- Build switch --------
+if (PYOPENLPT)
+  # Windows convenience for exporting symbols from a DLL (optional)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-# Find openmp package
-find_package(OpenMP REQUIRED)
-if (OPENMP_FOUND)
-    message("OpenMP FOUND")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  find_package(pybind11 REQUIRED)
+  find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
-    # set_property(TARGET OpenLPT PROPERTY
-    #     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    # set_property(TARGET OpenLPT PROPERTY
-    #     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  if (EXISTS "${PROJECT_SOURCE_DIR}/cmake/bindings.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/bindings.cmake")
+  else()
+    message(FATAL_ERROR "bindings.cmake not found under ${PROJECT_SOURCE_DIR}/cmake")
+  endif()
+
+else()
+  if (EXISTS "${PROJECT_SOURCE_DIR}/cmake/openLPT.cmake")
+    include("${PROJECT_SOURCE_DIR}/cmake/openLPT.cmake")
+  else()
+    message(FATAL_ERROR "openLPT.cmake not found under ${PROJECT_SOURCE_DIR}/cmake")
+  endif()
+
+option(OPENLPT_BUILD_TESTS "Build OpenLPT tests" OFF)
+
+if (OPENLPT_BUILD_TESTS AND EXISTS "${PROJECT_SOURCE_DIR}/cmake/ctest.cmake")
+  include("${PROJECT_SOURCE_DIR}/cmake/ctest.cmake")
 endif()
 
 
-# Compile openLPT 
-if (PYOPENLPT)
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    
-    # Compile python interface
-    find_package(pybind11 REQUIRED)
-    
-    if (pybind11_FOUND)
-        message("pybind11 FOUND")
-        find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-        include("${CMAKE_HOME_DIRECTORY}/cmake/bindings.cmake")
-    else()
-        message("pybind11 NOT FOUND")
-    endif()
+  # ---- Package config & export (for find_package(OpenLPT)) ----
+  include(CMakePackageConfigHelpers)
 
-else()
-    include("${CMAKE_HOME_DIRECTORY}/cmake/openLPT.cmake")
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/OpenLPTConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+  )
 
-    # Compile ctests 
-    include("${CMAKE_HOME_DIRECTORY}/cmake/ctest.cmake")
+  configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/OpenLPTConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/OpenLPTConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenLPT
+  )
 
-    # install libraries and exe
-    set(CMAKE_INSTALL_TARGETS
-        Matrix
-        myMath
-        ImageIO
-        Camera
-        ObjectInfo
-        SphereInfo
-        ObjectFinder
-        StereoMatch
-        OTF
-        Shake
-        IPR
-        PredField
-        Track
-        STB
-        OpenLPT
-    )
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/OpenLPTConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/OpenLPTConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenLPT
+  )
 
-    install(TARGETS ${CMAKE_INSTALL_TARGETS} DESTINATION ${CMAKE_HOME_DIRECTORY}/bin/)
+  # Export *our* targets for downstream usage
+  install(EXPORT OpenLPTTargets
+    NAMESPACE OpenLPT::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OpenLPT
+  )
 endif()

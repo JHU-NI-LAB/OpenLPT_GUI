@@ -36,7 +36,7 @@ std::vector<double> linspace (double min, double max, int n)
 //   1) We grow `comb` from left to right; at depth `d` we choose the next index i >= `start`.
 //   2) Prune when there are not enough elements left: i can go up to N - (K - d).
 //      (Because we still need (K - d) slots to fill after choosing position d.)
-static void generateCombinations(size_t N, size_t K, std::vector<std::vector<int>>& out)
+void generateCombinations(size_t N, size_t K, std::vector<std::vector<int>>& out)
 {
     out.clear();
     if (K > N) return;

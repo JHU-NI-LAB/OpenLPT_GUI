@@ -1,4 +1,5 @@
 #include "PredField.h"
+#include "Config.h" // for ObjectConfig
 
 // Directly set displacement field
 PredField::PredField (ObjectConfig& obj_cfg, Matrix<double> const& disp_field) : _obj_cfg(obj_cfg)

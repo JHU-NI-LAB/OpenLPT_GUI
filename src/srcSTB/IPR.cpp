@@ -7,8 +7,10 @@
 #include <type_traits>
 
 #include "IPR.h"
+#include "Config.h"
 #include "CameraUtil.h"
 #include "myMATH.h"
+#include "BubbleRefImg.h"
 
 
 // Limit the number of 2D objects PER ACTIVE CAMERA to `cap`.

@@ -14,8 +14,6 @@ add_library(bindmyMath STATIC ${CMAKE_SOURCE_DIR}/src/srcMath/myMATH.cpp)
 add_library(bindCamera STATIC ${CMAKE_SOURCE_DIR}/src/srcMath/Camera.cpp)
 # target_link_libraries(bindCamera PUBLIC bindMatrix bindmyMath)
 
-add_library(bindKalmanFilter STATIC ${CMAKE_SOURCE_DIR}/src/srcMath/KalmanFilter.cpp)
-
 # Object module
 add_library(bindObjectInfo STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectInfo.cpp)
 # target_link_libraries(bindObjectInfo PUBLIC bindMatrix)
@@ -23,7 +21,7 @@ add_library(bindObjectInfo STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectInfo.c
 file(GLOB CIRCLE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleCenterAndSizeByCircle/*.cpp")
 add_library(bindCircleIdentifier STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/CircleIdentifier.cpp ${CIRCLE_SRCS})
 
-add_library(bindObjectFinder INTERFACE ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectFinder.hpp)
+add_library(bindObjectFinder INTERFACE ${CMAKE_SOURCE_DIR}/src/srcObject/ObjectFinder.cpp)
 set_property(TARGET bindObjectFinder PROPERTY LINKER_LANGUAGE CXX)
 # target_link_libraries(bindObjectFinder PUBLIC bindMatrix bindObjectInfo bindmyMath)
 
@@ -34,21 +32,20 @@ add_library(bindBubbleRefImg STATIC ${CMAKE_SOURCE_DIR}/src/srcObject/BubbleRefI
 
 # STB module 
 # Find openmp package
-add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.hpp ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch_Bubble.hpp)
+add_library(bindStereoMatch INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/StereoMatch.cpp)
 set_property(TARGET bindStereoMatch PROPERTY LINKER_LANGUAGE CXX)
 
 add_library(bindOTF STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/OTF.cpp)
 
-add_library(bindShake STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/Shake.cpp ${CMAKE_SOURCE_DIR}/src/srcSTB/Shake_Bubble.cpp)
-add_library(bindShakeDebug STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/ShakeDebug.cpp)
+add_library(bindShake STATIC ${CMAKE_SOURCE_DIR}/src/srcSTB/Shake.cpp)
 
-add_library(bindIPR INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/IPR.hpp)
+add_library(bindIPR INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/IPR.cpp)
 set_property(TARGET bindIPR PROPERTY LINKER_LANGUAGE CXX)
 
-add_library(bindPredField INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/PredField.hpp)
+add_library(bindPredField INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/PredField.cpp)
 set_property(TARGET bindPredField PROPERTY LINKER_LANGUAGE CXX)
 
-add_library(bindTrack INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/Track.hpp)
+add_library(bindTrack INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/Track.cpp)
 set_property(TARGET bindTrack PROPERTY LINKER_LANGUAGE CXX)
 
 add_library(bindSTB INTERFACE ${CMAKE_SOURCE_DIR}/src/srcSTB/STB.cpp)
@@ -67,7 +64,6 @@ set(BINDINGS_LIB
     bindImageIO
     bindmyMath
     bindCamera
-    bindKalmanFilter
     bindObjectInfo
     bindCircleIdentifier
     bindObjectFinder
@@ -76,7 +72,6 @@ set(BINDINGS_LIB
     bindStereoMatch
     bindOTF
     bindShake
-    bindShakeDebug
     bindIPR
     bindPredField
     bindTrack

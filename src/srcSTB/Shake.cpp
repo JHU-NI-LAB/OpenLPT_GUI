@@ -282,21 +282,10 @@ double Shake::shakeOneObject(Object3D& obj, std::vector<ROIInfo>& ROI_info, doub
 
     // shaking on x,y,z direction
     double residue = 0.0;
-    std::unique_ptr<Object3D> obj3d_temp;
-
-    switch (_obj_cfg.kind())
-    {
-    case ObjectKind::Tracer:
-        auto& tr = static_cast<Tracer3D&>(obj);
-        obj3d_temp = std::make_unique<Tracer3D>(tr._pt_center, tr._r2d_px);
-        break;
-    case ObjectKind::Bubble:
-        auto& bb = static_cast<Bubble3D&>(obj);
-        obj3d_temp = std::make_unique<Bubble3D>(bb._pt_center, bb._r3d);
-        break;
-    default:
-        THROW_FATAL(ErrorCode::UnsupportedType, "Shake: unsupported ObjectKind to shake.");
-    }
+    
+    CreateArgs args;
+    args._proto = &obj;
+    std::unique_ptr<Object3D> obj3d_temp = _obj_cfg.creatObject3D(std::move(args)); // create a temporary object for shaking
 
     for (int i = 0; i < 3; i ++)
     {
@@ -451,12 +440,15 @@ std::vector<bool> Shake::markRepeatedObj(const std::vector<std::unique_ptr<Objec
 
     // Build KD tree for fast neighbor search
     using KDTreeObj3d = nanoflann::KDTreeSingleIndexAdaptor<
-        nanoflann::L2_Simple_Adaptor<double, Obj3dCloud>,
+        nanoflann::L2_Simple_Adaptor<double, Obj3dCloud, double, size_t>, // 显式写 DistanceType 和 IndexType
         Obj3dCloud,
-        3 // dimensionality
+        3,
+        size_t
     >;
+
     Obj3dCloud obj3d_cloud(objs);
-    KDTreeObj3d tree_obj3d(3, obj3d_cloud, {10});
+    nanoflann::KDTreeSingleIndexAdaptorParams params(10); // 显式构造
+    KDTreeObj3d tree_obj3d(3, obj3d_cloud, params);
     tree_obj3d.buildIndex();
 
     // Remove repeated tracks

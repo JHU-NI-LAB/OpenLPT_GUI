@@ -60,8 +60,7 @@ Matrix<T>::Matrix (std::string file_name)
     infile.open(file_name);
     if (!infile.is_open())
     {
-        std::cerr << "Matrix<T>::Matrix error at line " << __LINE__ << ":\n" << "Cannot open file: " << file_name << std::endl;
-        throw error_io;
+        THROW_FATAL_CTX(ErrorCode::IOfailure,"Matrix<T>::Matrix error: Cannot open file: ", file_name);
     }
 
     std::istringstream istream;
@@ -186,9 +185,7 @@ void Matrix<T>::create(int dim_row, int dim_col)
     }
     else
     {
-        std::cerr << "The space for _mtx is not cleared: "
-                  << "Cannot claim more space!" << std::endl;
-        throw error_space;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The space for _mtx is not cleared: Cannot claim more space!");
     }
 }
 
@@ -306,11 +303,8 @@ const T* Matrix<T>::data() const
 template<class T>
 void Matrix<T>::setData(const T* data, int size)
 {
-    if (size != _n)
-    {
-        std::cerr << "Matrix<T>::setData error: The size of input data does not match the size of matrix!" << std::endl;
-        throw error_size;
-    }
+    REQUIRE(size == _n, ErrorCode::InvalidArgument, "Matrix<T>::setData error: The size of input data does not match the size of matrix!");
+
 
     // for (int i = 0; i < _n; i ++)
     // {
@@ -438,8 +432,7 @@ Matrix<T> Matrix<T>::operator+ (Matrix<T> const& mtx) const
 {
     if ( (_dim_row != mtx._dim_row) || (_dim_col != mtx._dim_col) )
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
 
     Matrix<T> res(mtx);
@@ -456,8 +449,7 @@ Matrix<T>& Matrix<T>::operator+= (Matrix<T> const& mtx)
 {
     if ((_dim_row != mtx._dim_row) || (_dim_col != mtx._dim_col))
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
     for (int i = 0; i < _n; i ++)
     {
@@ -472,8 +464,7 @@ Matrix<T> Matrix<T>::operator- (Matrix<T> const& mtx) const
 {
     if ( (_dim_row != mtx._dim_row) || (_dim_col != mtx._dim_col) )
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
 
     Matrix<T> res(_dim_row, _dim_col, 0);
@@ -491,8 +482,7 @@ Matrix<T>& Matrix<T>::operator-= (Matrix<T> const& mtx)
 {
     if ((_dim_row != mtx._dim_row) || (_dim_col != mtx._dim_col))
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
     for (int i = 0; i < _n; i ++)
     {
@@ -506,8 +496,7 @@ Matrix<T> Matrix<T>::operator* (Matrix<T> const& mtx) const
 {
     if ( _dim_col != mtx._dim_row )
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
 
     Matrix<T> res(_dim_row, mtx._dim_col, 0);
@@ -530,8 +519,7 @@ Matrix<T>& Matrix<T>::operator*= (Matrix<T> const& mtx)
 {
     if ( _dim_col != mtx._dim_row )
     {
-        std::cerr << "The size of matrices do not match!" << std::endl;
-        throw error_size;
+        THROW_FATAL(ErrorCode::InvalidArgument,"The size of matrices do not match!");
     }
 
     Matrix<T> res(_dim_row, mtx._dim_col, 0);

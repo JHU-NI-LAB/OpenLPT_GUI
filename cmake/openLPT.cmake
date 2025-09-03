@@ -1,75 +1,275 @@
-# Build libraries
-add_library(Matrix SHARED ${CMAKE_HOME_DIRECTORY}/src/srcMath/Matrix.hpp)
-set_target_properties(Matrix PROPERTIES LINKER_LANGUAGE CXX)
+# cmake/openLPT.cmake — modern, per-target CMake for OpenLPT
+# Included by the top-level CMakeLists.txt when PYOPENLPT is OFF.
 
-add_library(myMath SHARED ${CMAKE_HOME_DIRECTORY}/src/srcMath/myMATH.cpp)
+if (TARGET OpenLPT)
+  return()
+endif()
+
+include(GNUInstallDirs)
+
+# ---- Global defaults -------------------------------------------------
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Common include roots used during build
+set(OPENLPT_INC_ROOTS
+  "${PROJECT_SOURCE_DIR}/inc"
+  "${PROJECT_SOURCE_DIR}/inc/libMath"
+  "${PROJECT_SOURCE_DIR}/src/srcMath"
+  "${PROJECT_SOURCE_DIR}/inc/libObject"
+  "${PROJECT_SOURCE_DIR}/inc/libObject/BubbleCenterAndSizeByCircle"
+  "${PROJECT_SOURCE_DIR}/inc/libObject/BubbleResize"
+  "${PROJECT_SOURCE_DIR}/src/srcObject"
+  "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleCenterAndSizeByCircle"
+  "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleResize"
+  "${PROJECT_SOURCE_DIR}/inc/libSTB"
+  "${PROJECT_SOURCE_DIR}/src/srcSTB"
+  "${PROJECT_SOURCE_DIR}/src"  # main.cpp lives here
+)
+
+# If you generate a config header from a template, enable:
+# configure_file(${PROJECT_SOURCE_DIR}/config.h.in ${PROJECT_BINARY_DIR}/config.h @ONLY)
+# list(APPEND OPENLPT_INC_ROOTS "${PROJECT_BINARY_DIR}")
+
+# Helper: warnings per compiler
+function(openlpt_apply_warnings tgt)
+  if (MSVC)
+    target_compile_options(${tgt} PRIVATE /W4 /permissive-)
+  else()
+    target_compile_options(${tgt} PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+endfunction()
+
+# Helper: attach include dirs with proper build/install interfaces
+function(openlpt_public_includes tgt)
+  # 基本包含
+  target_include_directories(${tgt} PUBLIC
+    $<BUILD_INTERFACE:${OPENLPT_INC_ROOTS}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+  # 如果使用内置 libtiff，把它的头路径作为“构建期 PUBLIC”传播给所有目标
+  if (EXISTS "${PROJECT_SOURCE_DIR}/inc/libtiff/CMakeLists.txt")
+    target_include_directories(${tgt} PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc/libtiff>
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc/libtiff/libtiff>
+    )
+  endif()
+endfunction()
+
+
+function(openlpt_interface_includes tgt)
+  target_include_directories(${tgt} INTERFACE
+    $<BUILD_INTERFACE:${OPENLPT_INC_ROOTS}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+endfunction()
+
+# ---- Third-party deps -----------------------------------------------
+
+# nanoflann (header-only): real target + namespaced alias
+add_library(nanoflann INTERFACE)
+target_include_directories(nanoflann INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc/nanoflann>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+add_library(OpenLPT::nanoflann ALIAS nanoflann)
+install(TARGETS nanoflann EXPORT OpenLPTTargets)
+
+# TIFF: prefer in-tree subproject; otherwise find_package
+if (EXISTS "${PROJECT_SOURCE_DIR}/inc/libtiff/CMakeLists.txt")
+  add_subdirectory("${PROJECT_SOURCE_DIR}/inc/libtiff" "${CMAKE_BINARY_DIR}/_deps/tiff")
+  if (TARGET tiff AND NOT TARGET OpenLPT::tiff)
+    add_library(OpenLPT::tiff ALIAS tiff)
+  endif()
+  if (TARGET tiff)
+    install(TARGETS tiff EXPORT OpenLPTTargets)
+  endif()
+else()
+  find_package(TIFF REQUIRED)
+  if (NOT TARGET OpenLPT::tiff)
+    add_library(OpenLPT::tiff INTERFACE)
+    target_link_libraries(OpenLPT::tiff INTERFACE TIFF::TIFF)
+  endif()
+endif()
+
+# OpenMP found at top-level; link per-target where needed
+
+# ---- Core math / io / camera ----------------------------------------
+
+# Matrix (header-only)
+add_library(Matrix INTERFACE)
+openlpt_interface_includes(Matrix)
+
+# myMath
+add_library(myMath STATIC "${PROJECT_SOURCE_DIR}/src/srcMath/myMATH.cpp")
+openlpt_interface_includes(myMath)
 target_link_libraries(myMath PUBLIC Matrix)
+openlpt_apply_warnings(myMath)
 
-add_library(ImageIO SHARED ${CMAKE_HOME_DIRECTORY}/src/srcMath/ImageIO.cpp)
-add_subdirectory("${CMAKE_HOME_DIRECTORY}/inc/libtiff")
-target_link_libraries(ImageIO PUBLIC Matrix tiff)
+# ImageIO
+add_library(ImageIO STATIC "${PROJECT_SOURCE_DIR}/src/srcMath/ImageIO.cpp")
+openlpt_public_includes(ImageIO)
 
-add_library(Camera SHARED ${CMAKE_HOME_DIRECTORY}/src/srcMath/Camera.cpp)
-target_link_libraries(Camera PUBLIC Matrix myMath)
+# 如果使用内置 libtiff，则在构建期提供它的头路径（私有，不导出）
+if (EXISTS "${PROJECT_SOURCE_DIR}/inc/libtiff/CMakeLists.txt")
+  target_include_directories(ImageIO PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc/libtiff>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc/libtiff/libtiff>
+  )
+endif()
 
-add_library(KalmanFilter SHARED ${CMAKE_HOME_DIRECTORY}/src/srcMath/KalmanFilter.cpp)
-target_link_libraries(KalmanFilter PUBLIC Matrix myMath)
+target_link_libraries(ImageIO
+  PUBLIC Matrix
+  PRIVATE OpenLPT::tiff
+)
 
-add_library(ObjectInfo SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/ObjectInfo.cpp)
-target_link_libraries(ObjectInfo PUBLIC Matrix Camera)
+openlpt_apply_warnings(ImageIO)
 
-# Sphere object 
-add_library(SphereInfo SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/Sphere/SphereInfo.cpp)
-target_link_libraries(SphereInfo PUBLIC Matrix Camera)
+# Camera
+add_library(Camera STATIC "${PROJECT_SOURCE_DIR}/src/srcMath/Camera.cpp")
+openlpt_public_includes(Camera)
+target_link_libraries(Camera PUBLIC myMath Matrix)
+openlpt_apply_warnings(Camera)
 
-# Bubble object finder 
-file(GLOB CIRCLE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleCenterAndSizeByCircle/*.cpp")
-add_library(CircleIdentifier SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/CircleIdentifier.cpp ${CIRCLE_SRCS})
-target_link_libraries(CircleIdentifier PUBLIC Matrix)
+# ---- Object modules --------------------------------------------------
 
-add_library(ObjectFinder SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/ObjectFinder.cpp)
-set_target_properties(ObjectFinder PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(ObjectFinder PUBLIC Matrix myMath ObjectInfo CircleIdentifier)
+# ObjectInfo
+add_library(ObjectInfo STATIC "${PROJECT_SOURCE_DIR}/src/srcObject/ObjectInfo.cpp")
+openlpt_public_includes(ObjectInfo)
+target_link_libraries(ObjectInfo PUBLIC Matrix myMath)
+openlpt_apply_warnings(ObjectInfo)
 
-# Bubble Resize
-file(GLOB BBRESIZE_SRCS "${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleResize/*.cpp")
-add_library(BubbleResize SHARED ${BBRESIZE_SRCS})
-target_link_libraries(BubbleResize PUBLIC Matrix)
+# CircleIdentifier (+ all circle detectors)
+file(GLOB CIRCLE_SRCS "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleCenterAndSizeByCircle/*.cpp")
+add_library(CircleIdentifier STATIC
+  "${PROJECT_SOURCE_DIR}/src/srcObject/CircleIdentifier.cpp"
+  ${CIRCLE_SRCS}
+)
+openlpt_public_includes(CircleIdentifier)
+target_link_libraries(CircleIdentifier PUBLIC ObjectInfo myMath Matrix)
+openlpt_apply_warnings(CircleIdentifier)
 
-# Bubble reference image
-add_library(BubbleRefImg SHARED ${CMAKE_HOME_DIRECTORY}/src/srcObject/BubbleRefImg.cpp)
-target_link_libraries(BubbleRefImg PUBLIC Matrix myMath ObjectInfo BubbleResize)
+# BubbleResize
+file(GLOB BBRESIZE_SRCS "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleResize/*.cpp")
+add_library(BubbleResize STATIC ${BBRESIZE_SRCS})
+openlpt_public_includes(BubbleResize)
+target_link_libraries(BubbleResize PUBLIC ObjectInfo myMath)
+openlpt_apply_warnings(BubbleResize)
 
-add_library(StereoMatch SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/StereoMatch.cpp)
-set_target_properties(StereoMatch PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(StereoMatch PUBLIC Matrix myMath ObjectInfo Camera)
+# BubbleRefImg (headers in inc/libObject, source in src/srcObject)
+add_library(BubbleRefImg STATIC "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleRefImg.cpp")
+openlpt_public_includes(BubbleRefImg)
+target_link_libraries(BubbleRefImg PUBLIC
+  BubbleResize
+  ObjectInfo
+  myMath       # Matrix is header-only; include via PUBLIC includes
+)
+openlpt_apply_warnings(BubbleRefImg)
 
-add_library(OTF SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/OTF.cpp)
-target_link_libraries(OTF PUBLIC Matrix myMath)
+# ObjectFinder (.cpp) — depends privately on nanoflann to avoid exporting it
+add_library(ObjectFinder STATIC "${PROJECT_SOURCE_DIR}/src/srcObject/ObjectFinder.cpp")
+openlpt_public_includes(ObjectFinder)
+target_link_libraries(ObjectFinder
+  PUBLIC Matrix myMath
+  PRIVATE OpenLPT::nanoflann
+)
+openlpt_apply_warnings(ObjectFinder)
 
-add_library(Shake SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/Shake.cpp ${CMAKE_HOME_DIRECTORY}/src/srcSTB/Shake_Bubble.cpp)
-target_link_libraries(Shake PUBLIC Matrix myMath ObjectInfo CircleIdentifier BubbleResize Camera OTF)
+# ---- STB family ------------------------------------------------------
 
-add_library(ShakeDebug SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/ShakeDebug.cpp)
-target_link_libraries(ShakeDebug PUBLIC Shake)
+# StereoMatch (.cpp)
+add_library(StereoMatch STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/StereoMatch.cpp")
+openlpt_public_includes(StereoMatch)
+target_link_libraries(StereoMatch PUBLIC
+  ObjectFinder Camera myMath Matrix OpenMP::OpenMP_CXX
+)
+openlpt_apply_warnings(StereoMatch)
 
-add_library(IPR SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/IPR.cpp)
-set_target_properties(IPR PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(IPR PUBLIC Matrix Camera ObjectInfo ObjectFinder StereoMatch Shake OTF)
+# OTF
+add_library(OTF STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/OTF.cpp")
+openlpt_public_includes(OTF)
+target_link_libraries(OTF PUBLIC Camera myMath Matrix OpenMP::OpenMP_CXX)
+openlpt_apply_warnings(OTF)
 
-add_library(PredField SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/PredField.cpp)
-set_target_properties(PredField PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(PredField PUBLIC Matrix myMath ObjectInfo)
+# Shake (PUBLIC depend on BubbleRefImg)
+add_library(Shake STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/Shake.cpp")
+openlpt_public_includes(Shake)
+target_link_libraries(Shake PUBLIC
+  BubbleRefImg
+  StereoMatch OTF ObjectInfo Camera myMath Matrix
+  OpenMP::OpenMP_CXX
+  OpenLPT::nanoflann            
+)
+openlpt_apply_warnings(Shake)
 
-add_library(Track SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/Track.cpp)
-set_target_properties(Track PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(Track PUBLIC Matrix myMath ObjectInfo KalmanFilter)
 
-add_library(STB SHARED ${CMAKE_HOME_DIRECTORY}/src/srcSTB/STB.cpp)
-set_target_properties(STB PROPERTIES LINKER_LANGUAGE CXX)
-target_link_libraries(STB PUBLIC Matrix myMath ObjectInfo ObjectFinder StereoMatch OTF Shake IPR PredField Track KalmanFilter)
+# IPR (.cpp) — PUBLIC depend on BubbleRefImg
+add_library(IPR STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/IPR.cpp")
+openlpt_public_includes(IPR)
+target_link_libraries(IPR PUBLIC
+  BubbleRefImg
+  Camera myMath Matrix OpenMP::OpenMP_CXX
+)
+openlpt_apply_warnings(IPR)
 
-# exe
-add_executable(OpenLPT src/main.cpp)
-target_link_libraries(OpenLPT PRIVATE ImageIO STB Matrix KalmanFilter ObjectInfo ObjectFinder StereoMatch OTF Shake IPR PredField Track)
+# PredField (.cpp)
+add_library(PredField STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/PredField.cpp")
+openlpt_public_includes(PredField)
+target_link_libraries(PredField PUBLIC myMath Matrix OpenMP::OpenMP_CXX)
+openlpt_apply_warnings(PredField)
 
+# Track (.cpp)
+add_library(Track STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/Track.cpp")
+openlpt_public_includes(Track)
+target_link_libraries(Track PUBLIC ObjectInfo myMath Matrix)
+openlpt_apply_warnings(Track)
+
+# STB (orchestrator)
+add_library(STB STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/STB.cpp")
+openlpt_public_includes(STB)
+target_link_libraries(STB PUBLIC
+  StereoMatch OTF Shake IPR PredField Track
+  ObjectInfo ObjectFinder Camera myMath Matrix
+  OpenMP::OpenMP_CXX
+)
+openlpt_apply_warnings(STB)
+
+# ---- Config module ---------------------------------------------------
+add_library(Config STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/Config.cpp")
+openlpt_public_includes(Config)
+# Also include plain inc/ so headers like error.hpp remain visible post-install
+target_include_directories(Config PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/inc>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(Config PUBLIC
+  ImageIO Camera OTF ObjectInfo BubbleResize myMath Matrix OpenMP::OpenMP_CXX
+)
+openlpt_apply_warnings(Config)
+
+# ---- Final executable ------------------------------------------------
+add_executable(OpenLPT "${PROJECT_SOURCE_DIR}/src/main.cpp")
+target_include_directories(OpenLPT PRIVATE ${OPENLPT_INC_ROOTS})
+target_link_libraries(OpenLPT PRIVATE
+  STB Config
+  BubbleResize CircleIdentifier BubbleRefImg ImageIO
+  ObjectInfo ObjectFinder Camera myMath Matrix
+  OpenLPT::nanoflann OpenMP::OpenMP_CXX
+)
+openlpt_apply_warnings(OpenLPT)
+
+# ---- Install rules ---------------------------------------------------
+# Install all public headers (so installed targets can #include after install)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/inc/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# Install our targets & archives
+install(TARGETS
+  Matrix myMath ImageIO Camera ObjectInfo
+  ObjectFinder CircleIdentifier BubbleResize BubbleRefImg
+  StereoMatch OTF Shake IPR PredField Track
+  STB Config
+  OpenLPT
+  EXPORT OpenLPTTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)

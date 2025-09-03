@@ -616,10 +616,10 @@ std::vector<ObjFlag> STB::checkRepeat(const std::vector<std::unique_ptr<Object3D
 
     const double tol = _obj_config->_sm_param.tol_3d_mm;
 
-    const int n_obj3d = static_cast<int>(n_obj3d);
+    const int ni_obj3d = static_cast<int>(n_obj3d);
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < n_obj3d; ++i)
+    for (int i = 0; i < ni_obj3d; ++i)
     {
         const Pt3D& p = objs[i]->_pt_center;
 
@@ -886,7 +886,7 @@ void STB::saveTracks (std::string const& file, std::deque<Track>& tracks)
     output << "\n";
 
     for (size_t i = 0; i < tracks.size(); ++i) {
-        tracks[i].saveTrack(output, static_cast<int>(i), _basic_setting._fps);
+        tracks[i].saveTrack(output, static_cast<int>(i));
     }
 
     output.close();
