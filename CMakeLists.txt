@@ -41,33 +41,16 @@ endif()
 # Python bindings (pybind11)
 # --------------------------
 if (PYOPENLPT)
-  # Python interpreter & development (headers, libs for embedding)
   find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-
-  # 用字符串缓存而非布尔 option，避免被强制成 ON/OFF
-  set(OPENLPT_PYBIND11_PROVIDER "auto" CACHE STRING "pybind11 provider: auto|pip|extern|system")
-  set_property(CACHE OPENLPT_PYBIND11_PROVIDER PROPERTY STRINGS auto pip extern system)
-
-
-  if (OPENLPT_PYBIND11_PROVIDER STREQUAL "extern")
-    add_subdirectory(extern/pybind11)
-  elseif (OPENLPT_PYBIND11_PROVIDER STREQUAL "pip" OR OPENLPT_PYBIND11_PROVIDER STREQUAL "auto")
-    find_package(pybind11 CONFIG QUIET)
-    if (NOT pybind11_FOUND)
-      execute_process(COMMAND "${Python_EXECUTABLE}" -m pybind11 --cmakedir
-                      OUTPUT_VARIABLE _pybind11_cmakedir OUTPUT_STRIP_TRAILING_WHITESPACE)
-      if (_pybind11_cmakedir)
-        set(pybind11_DIR "${_pybind11_cmakedir}" CACHE PATH "pip pybind11 cmakedir")
-        find_package(pybind11 CONFIG REQUIRED)
-      elseif(OPENLPT_PYBIND11_PROVIDER STREQUAL "auto" AND EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
-        add_subdirectory(extern/pybind11)
-      else()
-        message(FATAL_ERROR "pybind11 not found. Install with: pip install pybind11")
-      endif()
-    endif()
-  else()
-    find_package(pybind11 REQUIRED CONFIG)  # system
+  if (NOT DEFINED pybind11_DIR)
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -c "import pybind11,sys; sys.stdout.write(pybind11.get_cmake_dir())"
+      OUTPUT_VARIABLE _pybind11_cmakedir
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(pybind11_DIR "${_pybind11_cmakedir}" CACHE PATH "pybind11 CMake config dir" FORCE)
   endif()
+  find_package(pybind11 CONFIG REQUIRED)
 
 
   # Build the Python module (defined in cmake/bindings.cmake)
