@@ -168,7 +168,6 @@ ObjectConfig::readCommonConfig(const std::string& filepath, BasicSetting& settin
 
     int id = 0;
     try {
-        _n_thread = settings._n_thread;
         // STB params
         _stb_param._radius_search_obj   = std::stod(lines[id++]) * settings._voxel_to_mm;
         _stb_param._n_initial_frames    = std::stoi(lines[id++]);

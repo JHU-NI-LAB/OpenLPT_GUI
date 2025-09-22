@@ -145,7 +145,7 @@ template<class T>
 Matrix<T>::~Matrix ()
 {
     clear();
-    _mtx = nullptr;
+    
 }
 
 
@@ -162,6 +162,7 @@ void Matrix<T>::clear()
         _is_space = 0;
 
         delete[] _mtx;
+        _mtx = nullptr;
 
         // TODO: try to use nullptr for judge
         // _mtx = nullptr;
@@ -226,6 +227,25 @@ Matrix<int> Matrix<T>::typeToInt ()
 //
 // Get/Assign value
 //
+template<class T>
+T Matrix<T>::at(int r, int c) const {
+    REQUIRE_CTX(r >= 0 && r < _dim_row, ErrorCode::OutOfRange, "Invalid row",
+                "row=" + std::to_string(r) + " not in [0," + std::to_string(_dim_row-1) + "]");
+    REQUIRE_CTX(c >= 0 && c < _dim_col, ErrorCode::OutOfRange, "Invalid col",
+                "col=" + std::to_string(c) + " not in [0," + std::to_string(_dim_col-1) + "]");
+    return _mtx[mapID(r, c)];
+}
+
+template<class T>
+T& Matrix<T>::at(int r, int c) {
+    REQUIRE_CTX(r >= 0 && r < _dim_row, ErrorCode::OutOfRange, "Invalid row",
+                "row=" + std::to_string(r) + " not in [0," + std::to_string(_dim_row-1) + "]");
+    REQUIRE_CTX(c >= 0 && c < _dim_col, ErrorCode::OutOfRange, "Invalid col",
+                "col=" + std::to_string(c) + " not in [0," + std::to_string(_dim_col-1) + "]");
+    return _mtx[mapID(r, c)];
+}
+
+
 template<class T> 
 T Matrix<T>::operator() (int i, int j) const
 {

@@ -355,6 +355,7 @@ namespace coder {
                 pad[1] = static_cast<unsigned int>(A.size(1));
                 loop_ub = A.size(0) * A.size(1);
             }
+            
             for (int b_i{ 0 }; b_i < i; b_i++) {
                 b_r = static_cast<double>(b_i) * xcStep + 1.0;
                 csz_idx_0 = static_cast<int>(
@@ -526,6 +527,7 @@ namespace coder {
                     accumMatrix[k].im = accumMatrix[k].im + w[k].im;
                 }
             }
+            
         }
     }
 

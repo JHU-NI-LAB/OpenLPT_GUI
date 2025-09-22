@@ -158,8 +158,8 @@ double calRadiusFromOneCam(const Camera& cam,
     {
         // --- Access pinhole parameters (pixels intrinsics; C = camera center in world) ---
         // TODO: adjust accessor to your actual Camera API
-        const double fx = cam._pinhole_param.cam_mtx(0, 0);         // pixels
-        const double fy = cam._pinhole_param.cam_mtx(1, 1);         // pixels
+        const double fx = std::abs(cam._pinhole_param.cam_mtx(0, 0));         // pixels
+        const double fy = std::abs(cam._pinhole_param.cam_mtx(1, 1));         // pixels
         if (!(fx > 0.0) || !(fy > 0.0)) return NaN;
 
         // Use geometric mean for generality (handles non-square pixels robustly).
@@ -208,8 +208,8 @@ double cal2DRadius(const Camera& cam,
     {
         // --- Access pinhole parameters (pixel intrinsics; camera center C in world) ---
         // TODO: adjust accessor to your actual Camera API
-        const double fx = cam._pinhole_param.cam_mtx(0, 0);         // pixels
-        const double fy = cam._pinhole_param.cam_mtx(1, 1);         // pixels
+        const double fx = std::abs(cam._pinhole_param.cam_mtx(0, 0));         // pixels
+        const double fy = std::abs(cam._pinhole_param.cam_mtx(1, 1));         // pixels
         if (!(fx > 0.0) || !(fy > 0.0)) return NaN;
 
         // Use geometric mean for generality (handles non-square pixels robustly).
@@ -224,7 +224,6 @@ double cal2DRadius(const Camera& cam,
             // invalid or degenerate: object at/inside the camera center sphere of radius R
             return NaN;
         }
-
         // Exact forward formula
         const double denom_sq = d*d - R*R;
         if (!(denom_sq > 0.0)) return NaN; // extra guard

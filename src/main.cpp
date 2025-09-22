@@ -5,6 +5,8 @@
 #include <ctime>
 #include <cstdlib>  // EXIT_SUCCESS / EXIT_FAILURE
 #include <iomanip>
+#include <omp.h>
+#include <cstdio>
 
 #include "STBCommons.h"
 #include "ImageIO.h"
@@ -13,6 +15,21 @@
 #include "ObjectInfo.h"
 #include "STB.h"
 #include "error.hpp"  // 含 FatalError
+
+inline void init_omp_global(int n_threads = 0) {
+    omp_set_dynamic(0);  // 禁止运行时动态减线程
+
+#if defined(_MSC_VER) && !defined(__clang__)
+    omp_set_nested(1);   // MSVC vcomp 没有 omp_set_max_active_levels
+#else
+    omp_set_max_active_levels(2);  // 只保留2层并行
+#endif
+
+    const int hw = std::max(1, omp_get_num_procs());
+    const int n  = (n_threads > 0) ? std::min(n_threads, hw) : hw; // 0/negative => use all threads
+
+    if (!omp_in_parallel()) omp_set_num_threads(n);
+}
 
 // -------------------- 核心逻辑 --------------------
 int run_openlpt(const std::string& config_path) {
@@ -26,6 +43,9 @@ int run_openlpt(const std::string& config_path) {
         std::cerr << "Error: Failed to read basic configuration from file: " << config_path << std::endl;
         return EXIT_FAILURE;
     }
+
+    // set global thread
+    init_omp_global(basic_settings._n_thread);
 
     try {
         // Create STB objects
@@ -107,7 +127,7 @@ int run_openlpt(const std::string& config_path) {
 #ifdef OPENLPT_BUILD_CLI
 
 int main(int argc, char* argv[]) {
-
+    
     if (argc != 2) {
         std::cerr << "Usage: OpenLPT <config_file_path>" << std::endl;
         return EXIT_FAILURE;

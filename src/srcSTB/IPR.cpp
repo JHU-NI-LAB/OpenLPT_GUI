@@ -88,16 +88,19 @@ runSingleIPRIteration(const std::vector<Camera>& cams,
     o2d_list_all.resize(n_cam);
 
     std::cout << "\t\t2D detections per active camera: ";
-    for (std::size_t cam_id = 0; cam_id < n_cam; ++cam_id) {
+    const clock_t t_find2D_start = clock();
+    #pragma omp parallel for schedule(static)
+    for (int cam_id = 0; cam_id < static_cast<int>(n_cam); ++cam_id) {
         if (!cams[cam_id]._is_active) continue;
 
         // Implementation should branch internally by reading `cfg` (Tracer/Bubble).
         std::vector<std::unique_ptr<Object2D>> o2d_list = finder.findObject2D(images[cam_id], cfg);
 
-        std::cout << o2d_list.size() << ",";
+        std::cout << o2d_list.size() << "  ";
         o2d_list_all[cam_id] = std::move(o2d_list);
     }
-    std::cout << "\n";
+    const clock_t t_find2D_end = clock();
+    std::cout << " (" << double(t_find2D_end - t_find2D_start) / CLOCKS_PER_SEC << " s)"<< "\n";
 
     // 1.1) Global limiting (drop randomly across active cameras)
     limit2DObjectNumber(o2d_list_all, cams, static_cast<std::size_t>(ipr.n_obj2d_process_max));
@@ -141,6 +144,7 @@ runSingleIPRIteration(const std::vector<Camera>& cams,
             if (!ok) {
                 THROW_FATAL_CTX(ErrorCode::NoEnoughData, "Cannot obtain bubble reference image.");
             } 
+            std::cout<<"\tObtained bubble reference image!";
         }
         break;
     }
@@ -215,6 +219,25 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
             // Activate exactly this subset (others inactive)
             CameraUtil::setActiveSubset(_cam_list, ids);
 
+            // for obtaining bubble reference image or OTF
+            const int previous_match_cam_count = cfg._sm_param.match_cam_count;
+            if (drop == 0) {
+                switch (cfg.kind()) {
+                    case ObjectKind::Bubble: {
+                        auto& bb_cfg = static_cast<BubbleConfig&>(cfg);
+
+                        if (!bb_cfg._bb_ref_img._is_valid) {
+                            // need to locate 2D points on all cameras to get bubble reference images
+                            cfg._sm_param.match_cam_count = static_cast<int>(_cam_list.size()); 
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+
             std::cout << "Combination " << si << " cams=[";
             for (size_t k = 0; k < ids.size(); ++k) {
                 if (k) std::cout << ", ";
@@ -225,6 +248,8 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
             for (int loop = 0; loop < loops; ++loop)
             {
                 auto objs = runSingleIPRIteration(_cam_list, images, cfg); // images will be updated for every loop.
+
+                cfg._sm_param.match_cam_count = previous_match_cam_count; // reset back if changed
 
                 if (!objs.empty()) {
                     all_objs.insert(all_objs.end(),

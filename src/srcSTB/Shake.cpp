@@ -68,32 +68,22 @@ Shake::runShake(std::vector<std::unique_ptr<Object3D>>& objs,
         calResidueImage(objs, img_orig);
 
         // OpenMP parallel region (fallback to serial if OpenMP is not enabled)
-        const int n_thread = _obj_cfg._n_thread;
-        #pragma omp parallel num_threads(n_thread)
-        {
-            #pragma omp for
-            for (std::ptrdiff_t i_obj = 0; i_obj < static_cast<std::ptrdiff_t>(n_obj); ++i_obj) {
-                size_t i = static_cast<size_t>(i_obj);
-                if (!objs[i]) continue;
-
-                // 2.1 Build per-object Aug (ROI = residual ROI + this object's projection).
-                std::vector<ROIInfo> roi = buildROIInfo(*objs[i], img_orig);
-
-                // 2.2 Shake one object with current Δ (search {-Δ,0,+Δ} per axis, quad fit, refine).
-                //     Implementation detail: inside, only consider cameras that are:
-                //     active && ROI non-empty && selected by strategy->selectShakeCam(...).
-
-                // first, we need to determine which camera is used for shaking
-                std::vector<bool> shake_cam = _strategy->selectShakeCam(*objs[i], roi, img_orig);
-                (void) shakeOneObject(*objs[i], roi, delta, shake_cam);
-
-                // 2.3 Compute object score (cross-camera aggregation inside your calObjectScore).
-                double score = calObjectScore(*objs[i], roi);
-                _score_list[i] *= score;
-            }
-
-        } // end parallel region
-
+        #pragma omp parallel for if(!omp_in_parallel())
+        for (std::ptrdiff_t i_obj = 0; i_obj < static_cast<std::ptrdiff_t>(n_obj); ++i_obj) {
+            size_t i = static_cast<size_t>(i_obj);
+            if (!objs[i]) continue;
+            // 2.1 Build per-object Aug (ROI = residual ROI + this object's projection).
+            std::vector<ROIInfo> roi = buildROIInfo(*objs[i], img_orig);
+            // 2.2 Shake one object with current Δ (search {-Δ,0,+Δ} per axis, quad fit, refine).
+            //     Implementation detail: inside, only consider cameras that are:
+            //     active && ROI non-empty && selected by strategy->selectShakeCam(...).
+            // first, we need to determine which camera is used for shaking
+            std::vector<bool> shake_cam = _strategy->selectShakeCam(*objs[i], roi, img_orig);
+            (void) shakeOneObject(*objs[i], roi, delta, shake_cam);
+            // 2.3 Compute object score (cross-camera aggregation inside your calObjectScore).
+            double score = calObjectScore(*objs[i], roi);
+            _score_list[i] *= score;
+        }
         // 4) Δ schedule (halve each loop; clamp to delta_min)
         delta *= 0.5;
         if (delta < dmin) delta = dmin;
@@ -170,8 +160,7 @@ void Shake::calResidueImage(const std::vector<std::unique_ptr<Object3D>>& objs,
 
     // 4) Parallelize across cameras (each thread owns one residual image)
     //    You can also parallelize rows inside the camera loop if Images are big.
-    if (_obj_cfg._n_thread > 0) omp_set_num_threads(_obj_cfg._n_thread);
-    #pragma omp parallel for schedule(static,1)
+    #pragma omp parallel for if(!omp_in_parallel())
     for (int k = 0; k < n_cam; ++k) {
         // 4.1 Skip inactive cameras, but keep slot alignment (residual stays as original)
         if (!_cams[k]._is_active) continue;
@@ -428,7 +417,7 @@ double Shake::shakeOneObject(Object3D& obj,
             obj_tmp->_pt_center[ax] = x_abs;
             obj_tmp->projectObject2D(_cams);
             f[j] = _strategy->calShakeResidue(*obj_tmp, ROI_info, shake_cam);
-
+            
             // record UV for each camera at this sample (used to estimate Jx and margins later)
             for (size_t k = 0; k < _cams.size(); ++k) {
                 if (!shake_cam[k]) continue;
@@ -1016,7 +1005,7 @@ std::vector<bool> BubbleShakeStrategy::selectShakeCam(const Object3D& obj, const
             // 4.b) 2x upsample
             const int img_size = 2 * npix;
             BubbleResize bb_resizer;
-            const Image& img_up = bb_resizer.ResizeBubble(img_ref, img_size, _cams[cam]._max_intensity);
+            const Image img_up = bb_resizer.ResizeBubble(img_ref, img_size, _cams[cam]._max_intensity);
 
             // 4.c) detect circles on upsampled image
             CircleIdentifier circle_id(img_up);
@@ -1143,15 +1132,15 @@ double BubbleShakeStrategy::calShakeResidue(const Object3D& obj_candidate, std::
         int npix = r_int * 2 + 1; // guarantee there is only a whole center pixel on ref_img
         const auto& bb_cfg = static_cast<const BubbleConfig&>(_obj_cfg); // to get the bubble reference image
         BubbleResize bb_resizer;
-        const Image& ref_img = bb_resizer.ResizeBubble(bb_cfg._bb_ref_img[cam], npix, _cams[cam]._max_intensity);
-        
+        const Image ref_img = bb_resizer.ResizeBubble(bb_cfg._bb_ref_img[cam], npix, _cams[cam]._max_intensity);
+
         // calculate cross-correlation
         std::vector<double> corr_interp(4,0);
         corr_interp[0] = getImgCorr(roi_info[cam], x_low, y_low, ref_img); 
         corr_interp[1] = getImgCorr(roi_info[cam], x_high, y_low, ref_img); 
         corr_interp[2] = getImgCorr(roi_info[cam], x_high, y_high, ref_img);
         corr_interp[3] = getImgCorr(roi_info[cam], x_low, y_high, ref_img);
-
+        
         // bilinear interpolation
         AxisLimit grid_limit(x_low, x_high, y_low, y_high, 0,0);
         std::vector<double> center = {xc, yc};

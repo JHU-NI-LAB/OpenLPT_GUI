@@ -1,4 +1,4 @@
-function [fit_ratio, fit, correctness] = compareTracks(track0, track1, show_image, save_path)
+function [fit_ratio, fit, correctness, correct_ratio] = compareTracks(track0, track1, show_image, save_path)
 % track0: the original track
 % track1: the track to be compared
 % track_id: start from 0
@@ -7,6 +7,8 @@ num_track0 = size(unique(track0(:,1)),1);
 num_track1 = size(unique(track1(:,1)),1);
 
 frameID_list = unique(track0(:,2));
+trackID0_list = unique(track0(:, 1));
+trackID1_list = unique(track1(:, 1));
 num_frame = size(frameID_list,1);
 
 tolerant = 3e-1;
@@ -22,7 +24,7 @@ if show_image
     fig = figure('Visible', 'on'); 
 end
 for i = 1 : num_track0      % go over every track
-    track0_id = i-1;
+    track0_id = trackID0_list(i);
     judge = track0(:,1) == track0_id;
     track_orig = track0(judge,:);
 
@@ -90,7 +92,8 @@ for i = 1 : num_track0      % go over every track
                 end
 
                 fit_number = fit_number + 1;
-                correctness(track1_id+1) = correctness(track1_id+1) + 1; % increase the number of correct particle in the track
+                id_cr = find(trackID1_list == track1_id);
+                correctness(id_cr) = correctness(id_cr) + 1; % increase the number of correct particle in the track
                 
                 if show_image 
                     plotTracks(fig, track1_candidate(k, 3:5), 'g*'); 
@@ -116,6 +119,13 @@ for i = 1 : num_track0      % go over every track
     end
 end
     fit_ratio = sum(fit(:, 1)) / sum(fit(:, 3));
+
+correct_ratio = zeros(num_track1, 1);   
+for i = 1 : num_track1
+    judge = track1(:, 1) == trackID1_list(i);
+    len = sum(judge);
+    correct_ratio(i) = correctness(i) / len;
+end
 
 end
 

@@ -19,7 +19,10 @@ void bind_BubbleRefImg(py::module_& m)
              py::arg("camID"),
              py::return_value_policy::reference_internal)
 
-        .def("cal_bubble_ref_img_from_objs",
+        .def("__getitem__", (const Image& (BubbleRefImg::*)(size_t) const)&BubbleRefImg::operator[],
+            py::return_value_policy::reference_internal)
+
+        .def("calBubbleRefImg",
             [](BubbleRefImg& self,
                 const std::vector<Object3D*>& objs3d,                         // list[Bubble3D]
                 const std::vector<std::vector<Object2D*>>& objs2d_by_cam,     // per-cam list[Bubble2D]

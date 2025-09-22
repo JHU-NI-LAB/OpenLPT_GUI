@@ -24,6 +24,7 @@ set(PY_SOURCES
   "${OPENLPT_PY_DIR}/pyIPR.cpp"
   "${OPENLPT_PY_DIR}/pyOTF.cpp"
   "${OPENLPT_PY_DIR}/pyBubbleRefImg.cpp"
+  "${OPENLPT_PY_DIR}/pyBubbleResize.cpp"
   "${OPENLPT_PY_DIR}/pyTrack.cpp"
   "${OPENLPT_PY_DIR}/pyMatrix.cpp"
   "${OPENLPT_PY_DIR}/pymyMath.cpp"

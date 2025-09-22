@@ -19,6 +19,7 @@
 
 // Variable Declarations
 extern omp_nest_lock_t emlrtNestLockGlobal;
+void emlrtLockInitOnce();
 
 #endif
 // End of code generation (BubbleCenterAndSizeByCircle_data.h)

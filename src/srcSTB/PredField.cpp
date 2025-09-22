@@ -27,72 +27,58 @@ void PredField::calPredField(const std::vector<std::unique_ptr<Object3D>>& obj3d
     // calculate displacement field
     PFParam& param = _obj_cfg._pf_param;
     // loop for each grid
-    const int n_thread = _obj_cfg._n_thread;
-    #pragma omp parallel num_threads(n_thread)
+    #pragma omp parallel for collapse(3) if(!omp_in_parallel())
+    for (int x_id = 0; x_id < param.nx; x_id ++)
     {
-        #pragma omp for
-        for (int x_id = 0; x_id < param.nx; x_id ++)
+        for (int y_id = 0; y_id < param.ny; y_id ++)
         {
-            for (int y_id = 0; y_id < param.ny; y_id ++)
+            for (int z_id = 0; z_id < param.nz; z_id ++)
             {
-                for (int z_id = 0; z_id < param.nz; z_id ++)
+                std::vector<int> xyz_id = {x_id, y_id, z_id};
+                int grid_id = mapGridID(xyz_id[0],xyz_id[1],xyz_id[2]);
+                // find obj that is close to the grid
+                
+                std::vector<int> objID_list_prev, objID_list_curr;
+                findNeighbor(objID_list_prev, xyz_id, obj3d_list_prev);
+                findNeighbor(objID_list_curr, xyz_id, obj3d_list_curr);
+                // if not find obj in one frame, then stop
+                if (objID_list_curr.empty() || objID_list_prev.empty())
                 {
-                    std::vector<int> xyz_id = {x_id, y_id, z_id};
-
-                    int grid_id = mapGridID(xyz_id[0],xyz_id[1],xyz_id[2]);
-
-                    // find obj that is close to the grid
-                    
-                    std::vector<int> objID_list_prev, objID_list_curr;
-                    findNeighbor(objID_list_prev, xyz_id, obj3d_list_prev);
-                    findNeighbor(objID_list_curr, xyz_id, obj3d_list_curr);
-
-                    // if not find obj in one frame, then stop
-                    if (objID_list_curr.empty() || objID_list_prev.empty())
-                    {
-                        _disp_field(grid_id, 0) = 0;
-                        _disp_field(grid_id, 1) = 0;
-                        _disp_field(grid_id, 2) = 0;
-                        continue;
-                    }
-
-                    // getting the displacement vectors (if there are particles in the search volume for both the frames)
-                    std::vector<std::vector<double>> disp_list; // all dx,dy,dz
-                    std::vector<double> disp(3,0); // dx,dy,dz
-                    int id_curr, id_prev;
-                    
-                    for (int j = 0; j < objID_list_curr.size(); j ++) 
-                    {
-                        id_curr = objID_list_curr[j];
-                        for (int k = 0; k < objID_list_prev.size(); k ++) 
-                        {  
-                            id_prev = objID_list_prev[k];
-                            // TODO: add a filter to get objects with similar features
-
-                            disp[0] = obj3d_list_curr[id_curr]->_pt_center[0] 
-                                    - obj3d_list_prev[id_prev]->_pt_center[0];
-
-                            disp[1] = obj3d_list_curr[id_curr]->_pt_center[1] 
-                                    - obj3d_list_prev[id_prev]->_pt_center[1];
-
-                            disp[2] = obj3d_list_curr[id_curr]->_pt_center[2] 
-                                    - obj3d_list_prev[id_prev]->_pt_center[2];
-
-                            disp_list.push_back(disp);
-                        }
-                    }
-                    
-                    // update displacement pdf
-                    std::vector<double> disp_pdf(_nBin_tot, 0);
-                    updateDispPDF(disp_pdf, disp_list);
-
-                    // find the peak location of the displacement pdf
-                    std::vector<double> disp_opt = findPDFPeakLoc(disp_pdf);
-
-                    _disp_field(grid_id, 0) = disp_opt[0];
-                    _disp_field(grid_id, 1) = disp_opt[1];
-                    _disp_field(grid_id, 2) = disp_opt[2];
+                    _disp_field(grid_id, 0) = 0;
+                    _disp_field(grid_id, 1) = 0;
+                    _disp_field(grid_id, 2) = 0;
+                    continue;
                 }
+                // getting the displacement vectors (if there are particles in the search volume for both the frames)
+                std::vector<std::vector<double>> disp_list; // all dx,dy,dz
+                std::vector<double> disp(3,0); // dx,dy,dz
+                int id_curr, id_prev;
+                
+                for (int j = 0; j < objID_list_curr.size(); j ++) 
+                {
+                    id_curr = objID_list_curr[j];
+                    for (int k = 0; k < objID_list_prev.size(); k ++) 
+                    {  
+                        id_prev = objID_list_prev[k];
+                        // TODO: add a filter to get objects with similar features
+                        disp[0] = obj3d_list_curr[id_curr]->_pt_center[0] 
+                                - obj3d_list_prev[id_prev]->_pt_center[0];
+                        disp[1] = obj3d_list_curr[id_curr]->_pt_center[1] 
+                                - obj3d_list_prev[id_prev]->_pt_center[1];
+                        disp[2] = obj3d_list_curr[id_curr]->_pt_center[2] 
+                                - obj3d_list_prev[id_prev]->_pt_center[2];
+                        disp_list.push_back(disp);
+                    }
+                }
+                
+                // update displacement pdf
+                std::vector<double> disp_pdf(_nBin_tot, 0);
+                updateDispPDF(disp_pdf, disp_list);
+                // find the peak location of the displacement pdf
+                std::vector<double> disp_opt = findPDFPeakLoc(disp_pdf);
+                _disp_field(grid_id, 0) = disp_opt[0];
+                _disp_field(grid_id, 1) = disp_opt[1];
+                _disp_field(grid_id, 2) = disp_opt[2];
             }
         }
     }
@@ -402,7 +388,7 @@ void PredField::applyGaussian (Matrix<double>& field, int nx, int ny, int nz, st
     Matrix<double> temp(field); // Copy input data
 
     // along x-direction
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(3) if(!omp_in_parallel())
     for (int x = 0; x < nx; x++) 
     {
         for (int y = 0; y < ny; y++) 
@@ -428,7 +414,7 @@ void PredField::applyGaussian (Matrix<double>& field, int nx, int ny, int nz, st
     temp = field; // update temp
 
     // along y-direction
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(3) if(!omp_in_parallel())
     for (int x = 0; x < nx; x++) 
     {
         for (int y = 0; y < ny; y++) 
@@ -453,7 +439,7 @@ void PredField::applyGaussian (Matrix<double>& field, int nx, int ny, int nz, st
     temp = field; // update temp
 
     // along z-direction
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(3) if(!omp_in_parallel())
     for (int x = 0; x < nx; x++) 
     {
         for (int y = 0; y < ny; y++) 

@@ -24,7 +24,7 @@ BubbleResize::~BubbleResize()
 
 // b_img: the reference bubble image, b_d: the diameter of the reference
 // img: output resized image, d_b: the size of the output
-Image& BubbleResize::ResizeBubble(Image const& b_img, int d_b, double b_img_max)
+Image BubbleResize::ResizeBubble(Image const& b_img, int d_b, double b_img_max)
 {
   coder::array<double, 2U> weights;
   coder::array<int, 2U> indices;

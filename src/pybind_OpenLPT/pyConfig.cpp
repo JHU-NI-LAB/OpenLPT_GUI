@@ -131,7 +131,6 @@ void bind_Config(py::module_& m) {
                  return cfg.creatObject3D(std::move(args));
              },
              py::arg("args"))
-        .def_readwrite("_n_thread", &ObjectConfig::_n_thread)
         .def_readwrite("_stb_param", &ObjectConfig::_stb_param)
         .def_readwrite("_shake_param", &ObjectConfig::_shake_param)
         .def_readwrite("_pf_param", &ObjectConfig::_pf_param)

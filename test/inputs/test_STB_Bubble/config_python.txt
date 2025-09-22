@@ -1,0 +1,34 @@
+# Frame Range: [startID,endID]
+0,249
+# Frame Rate: [Hz]
+1
+# Number of Threads: (0: use as many as possible)
+0
+# Number of Cameras: 
+4
+# Camera File Path, Max Intensity
+../../test/inputs/test_STB_Bubble/camFile/cam1.txt,255
+../../test/inputs/test_STB_Bubble/camFile/cam2.txt,255
+../../test/inputs/test_STB_Bubble/camFile/cam3.txt,255
+../../test/inputs/test_STB_Bubble/camFile/cam4.txt,255
+# Image File Path
+../../test/inputs/test_STB_Bubble/imgFile/cam1ImageNames_python.txt
+../../test/inputs/test_STB_Bubble/imgFile/cam2ImageNames_python.txt
+../../test/inputs/test_STB_Bubble/imgFile/cam3ImageNames_python.txt
+../../test/inputs/test_STB_Bubble/imgFile/cam4ImageNames_python.txt
+# View Volume: (xmin,xmax,ymin,ymax,zmin,zmax)
+-20,20,-20,20,-20,20
+# Voxel to MM: e.g. use 1000^3 voxel, (xmax-xmin)/1000
+0.04
+# Output Folder Path: 
+../../test/results/test_STB_Bubble/
+# Object Types: 
+Bubble
+# STB Config Files:
+../../test/inputs/test_STB_Bubble/bubbleConfig.txt
+# Flag to load previous track files, previous frameID
+0,-1
+# Path to active long track files
+../../test/results/test_STB/Tracer_0/LongTrackActive_20.csv
+# Path to active short track files
+../../test/results/test_STB/Tracer_0/ShortTrackActive_20.csv

@@ -566,7 +566,9 @@ CircleIdentifier::CircleIdentifier(Image const& img_input)
       img[idx0 + img.size(0) * idx1] = img_input(idx0, idx1) / img_max * 255;
     }
   }
-  omp_init_nest_lock(&emlrtNestLockGlobal);
+//   omp_init_nest_lock(&emlrtNestLockGlobal);
+//   extern void emlrtLockInitOnce();  // 在 data.cpp 里声明/放到公共头里也可
+  emlrtLockInitOnce();
 }
 
 //
@@ -575,7 +577,7 @@ CircleIdentifier::CircleIdentifier(Image const& img_input)
 //
 CircleIdentifier::~CircleIdentifier()
 {
-  omp_destroy_nest_lock(&emlrtNestLockGlobal);
+//   omp_destroy_nest_lock(&emlrtNestLockGlobal);
 }
 
 //

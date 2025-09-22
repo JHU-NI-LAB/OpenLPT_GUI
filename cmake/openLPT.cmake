@@ -150,7 +150,9 @@ add_library(CircleIdentifier STATIC
   ${CIRCLE_SRCS}
 )
 openlpt_public_includes(CircleIdentifier)
-target_link_libraries(CircleIdentifier PUBLIC ObjectInfo myMath Matrix)
+target_link_libraries(CircleIdentifier 
+  PUBLIC ObjectInfo myMath Matrix
+  PUBLIC OpenMP::OpenMP_CXX)
 openlpt_apply_warnings(CircleIdentifier)
 
 # BubbleResize
@@ -175,6 +177,7 @@ add_library(ObjectFinder STATIC "${PROJECT_SOURCE_DIR}/src/srcObject/ObjectFinde
 openlpt_public_includes(ObjectFinder)
 target_link_libraries(ObjectFinder
   PUBLIC Matrix myMath
+  PUBLIC OpenMP::OpenMP_CXX
   PRIVATE OpenLPT::nanoflann
 )
 openlpt_apply_warnings(ObjectFinder)
@@ -254,10 +257,15 @@ openlpt_apply_warnings(Config)
 # ---- Final executable ------------------------------------------------
 add_executable(OpenLPT "${PROJECT_SOURCE_DIR}/src/main.cpp")
 target_compile_definitions(OpenLPT PRIVATE OPENLPT_BUILD_CLI)
+# set_target_properties(OpenLPT PROPERTIES
+#   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
+#   RUNTIME_OUTPUT_DIRECTORY_DEBUG   "${CMAKE_BINARY_DIR}/Debug"
+#   RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+# )
 set_target_properties(OpenLPT PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
-  RUNTIME_OUTPUT_DIRECTORY_DEBUG   "${CMAKE_BINARY_DIR}/Debug"
-  RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+  RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/$<CONFIG>"
+  LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/$<CONFIG>"
+  ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/$<CONFIG>"
 )
 add_custom_command(TARGET OpenLPT POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E echo "OpenLPT exe: $<TARGET_FILE:OpenLPT>"

@@ -162,11 +162,7 @@ void STB::buildTrackFromPredField (int frame_id, const PredField* pf) {
         int n_sa = _short_track_active.size();
         std::vector<int> link_id(n_sa, UNLINKED);
         
-        if (_basic_setting._n_thread > 0)
-        {
-            omp_set_num_threads(_basic_setting._n_thread);
-        }
-        #pragma omp parallel for
+        #pragma omp parallel for if(!omp_in_parallel())
         for (int j = 0; j < n_sa; j ++)
         {
             Pt3D vel_curr = pf->getDisp(_short_track_active[j]._obj3d_list.back()->_pt_center);
@@ -324,8 +320,6 @@ void STB::runConvPhase (int frame, std::vector<Image>& img_list)
     int n_li = _long_track_inactive.size();
     int n_ex = _exit_track.size();
     int add_sa = 0, add_la = 0, rm_sa = 0, rm_la = 0, add_li = 0; //s: short, l: long, a: active, i: inactive
-    int n_thread = _basic_setting._n_thread;
-
 
     // -------------------- 1. Prediction for active long tracks ----------------------//
     std::cout << " Prediction: ";
@@ -335,11 +329,7 @@ void STB::runConvPhase (int frame, std::vector<Image>& img_list)
     std::vector<std::unique_ptr<Object3D>> obj3d_list_pred(n_la);
     std::vector<int> is_inRange(n_la, 1);
 
-    if (n_thread > 0)
-    {
-        omp_set_num_threads(n_thread);
-    }
-    #pragma omp parallel for
+    #pragma omp parallel for if(!omp_in_parallel())
     for (int i = 0; i < n_la; i ++)
     {
         // Prediction
@@ -478,11 +468,7 @@ void STB::runConvPhase (int frame, std::vector<Image>& img_list)
         tree_track.buildIndex();
 
         // query the kd tree for each active short track
-        if (n_thread > 0)
-        {
-            omp_set_num_threads(n_thread);
-        }
-        #pragma omp parallel for
+        #pragma omp parallel for if(!omp_in_parallel())
         for (int i = 0; i < n_sa; i ++)
         {
             link_id[i] = linkShortTrack(_short_track_active[i], 5, tree_obj3d, tree_track);
@@ -568,12 +554,9 @@ void STB::runConvPhase (int frame, std::vector<Image>& img_list)
     const size_t n_la_new = _long_track_active.size();
 
     // Parallel phase: decide which tracks to erase (read-only)
-    if (n_thread > 0) {
-        omp_set_num_threads(n_thread);
-    }
     std::vector<uint8_t> is_erase(n_la_new, 0);
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for if(!omp_in_parallel())
     for (int i = 0; i < static_cast<int>(n_la_new); ++i)
     {
         if (!checkLinearFit(_long_track_active[static_cast<size_t>(i)])) {
@@ -637,10 +620,6 @@ std::vector<ObjFlag> STB::checkRepeat(const std::vector<std::unique_ptr<Object3D
     std::vector<ObjFlag> flags(n_obj3d, ObjFlag::None);
     if (n_obj3d == 0) return flags;
 
-    if (_basic_setting._n_thread > 0) {
-        omp_set_num_threads(_basic_setting._n_thread);
-    }
-
     // get the last point in active long tracks, to avoid frequent reference back()
     std::vector<Pt3D> last_centers;
     last_centers.reserve(_long_track_active.size());
@@ -654,7 +633,7 @@ std::vector<ObjFlag> STB::checkRepeat(const std::vector<std::unique_ptr<Object3D
 
     const int ni_obj3d = static_cast<int>(n_obj3d);
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for if(!omp_in_parallel())
     for (int i = 0; i < ni_obj3d; ++i)
     {
         const Pt3D& p = objs[i]->_pt_center;

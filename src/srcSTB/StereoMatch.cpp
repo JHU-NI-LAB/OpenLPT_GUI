@@ -79,7 +79,7 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
     //match_candidates.reserve(estimate_total_candidates);
 
     // Prepare per-thread buckets (no sharing between threads)
-    const int T = std::max(1, _obj_cfg._n_thread);
+    const int T = std::max(1, omp_get_max_threads());
     std::vector<std::vector<std::vector<int>>> thread_buckets(T);
 
     #pragma omp parallel num_threads(T)
@@ -87,7 +87,7 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
         const int tid = omp_get_thread_num();
         auto& bucket = thread_buckets[tid];              // thread-local bucket (by index)
 
-        #pragma omp for schedule(dynamic, 8)
+        #pragma omp for schedule(dynamic, 32)
         for (int id_ref = 0; id_ref < static_cast<int>(ref_obs.size()); ++id_ref) {
             // One candidate initialized with -1 everywhere and ref_cam filled.
             std::vector<int> match_candidate_id(n_cams, -1);

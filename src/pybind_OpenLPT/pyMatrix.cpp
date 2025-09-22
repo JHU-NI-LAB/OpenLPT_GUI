@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include "Matrix.h"
 
 namespace py = pybind11;
@@ -142,5 +143,25 @@ void bind_Matrix(py::module_& m) {
             )
         .def("__repr__", [](const Image& img){
             return "<Image " + std::to_string(img.getDimRow()) + "x" + std::to_string(img.getDimCol()) + ">";
-        });
+        })
+        .def_static("from_numpy",  // static: does not need object image
+            [](py::array_t<uint8_t, py::array::c_style | py::array::forcecast> arr) {
+                if (arr.ndim() != 2) {
+                    throw std::runtime_error("from_numpy: input must be 2D array");
+                }
+                int H = static_cast<int>(arr.shape(0));
+                int W = static_cast<int>(arr.shape(1));
+
+                Image img(H, W, 0.0);
+
+                auto r = arr.unchecked<2>();  
+                for (int i = 0; i < H; i++) {
+                    for (int j = 0; j < W; j++) {
+                        img(i, j) = r(i, j);   
+                    }
+                }
+                return img;
+            },
+            py::arg("array")
+        );
 }

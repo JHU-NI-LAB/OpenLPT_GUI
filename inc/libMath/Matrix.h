@@ -63,8 +63,11 @@ public:
     Matrix<int>    typeToInt ();
 
     // Get/Assign value
-    T  operator() (int i, int j) const;
-    T& operator() (int i, int j);
+    // Matrix.h
+    T  at(int r, int c) const;  // check index, for debug
+    T& at(int r, int c); // check index, for debug
+    T  operator() (int i, int j) const; // no check, fast
+    T& operator() (int i, int j); // no check, fast
     // Return _mtx[i], i = id_x*_dim_col + id_y
     // 0,1,2
     // 3,4,5 ...
@@ -169,6 +172,17 @@ public:
     Image (const Image& mtx) : Matrix<double>(mtx) {};
     Image (const Matrix<double>& mtx) : Matrix<double>(mtx) {};
     explicit Image (std::string file_name) : Matrix<double>(file_name) {};
+
+    Image crop(int y0, int y1, int x0, int x1) const {
+        const int H = y1 - y0, W = x1 - x0;
+        Image sub(H, W, 0.0);
+        for (int r = 0; r < H; ++r) {
+            for (int c = 0; c < W; ++c) {
+                sub(r, c) = (*this)(y0 + r, x0 + c);
+            }
+        }
+        return sub;
+    }
 
     void save(const std::string& path,
               int bits_per_sample = 8,

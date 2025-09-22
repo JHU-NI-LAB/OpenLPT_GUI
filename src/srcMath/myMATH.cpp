@@ -631,6 +631,7 @@ double imgCrossCorrAtPt(const Image& img, const Image& ref_img, double cx, doubl
     } else {
         corr = 0.0;  // one constant, one not
     }
+
     return corr;
 }
 

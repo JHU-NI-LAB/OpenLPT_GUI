@@ -23,6 +23,7 @@ void bind_STB(py::module_&);
 void bind_StereoMatch(py::module_&);
 void bind_ObjectFinder(py::module_&);
 void bind_BubbleRefImg(py::module_&);
+void bind_BubbleResize(py::module_&);
 
 int run_openlpt(const std::string& config_path);
 
@@ -75,6 +76,7 @@ PYBIND11_MODULE(pyopenlpt, m) {
     bind_StereoMatch(m);
     bind_ObjectFinder(m);
     bind_BubbleRefImg(m);
+    bind_BubbleResize(m);
 
     m.def("run",
           [](const std::string& config_file_path) {

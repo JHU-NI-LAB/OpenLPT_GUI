@@ -22,7 +22,7 @@ public:
     int _frame_start = 0;
     int _frame_end;
     int _fps;
-    int _n_thread;
+    int _n_thread = 0; // default: 0 means using all threads.
     std::vector<Camera> _cam_list; 
     AxisLimit _axis_limit;
     double _voxel_to_mm;
@@ -123,7 +123,6 @@ struct CreateArgs {
 class ObjectConfig {
 public:
     // common configuration parameters for all types of objects
-    int _n_thread = 1; // number of threads
     // STB parameters
     STBParam _stb_param;
 

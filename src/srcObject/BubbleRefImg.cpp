@@ -195,11 +195,11 @@ bool BubbleRefImg::calBubbleRefImg(
 
         for (int yy = 0; yy < npix; ++yy) {
             for (int xx = 0; xx < npix; ++xx) {
-                const double d = std::hypot(yy - cy, xx - cx);
-                if (d >= rr) {
-                    _img_Ref_list[cam](yy, xx) = 0.0;
-                    continue; // outside the effective disk
-                }
+                // const double d = std::hypot(yy - cy, xx - cx);
+                // if (d >= rr) {
+                //     _img_Ref_list[cam](yy, xx) = 0.0;
+                //     continue; // outside the effective disk
+                // }
 
                 double acc = 0.0;
                 int    navg = 0;
