@@ -36,7 +36,7 @@ public:
     std::vector<Image> calResidualImage(const std::vector<std::unique_ptr<Object3D>>& objs, const std::vector<Image>& img_orig, 
         const std::vector<ObjFlag>* flags = nullptr) 
     {
-        calResidueImage(objs, img_orig, true, flags); // non_negative = true: all negative value should be set to 0
+        calResidueImage(objs, img_orig, true, flags); // output_ipr = true: all negative value should be set to 0, and calculate for all cameras
         return _img_res_list; 
     };
 
@@ -51,7 +51,7 @@ private:
     // if non_negative = true, then replace negative value as 0, 
     // flags is the flag marking ghost and repeated objects, which are not consider when calculating residual image
     void calResidueImage(const std::vector<std::unique_ptr<Object3D>>& objs, const std::vector<Image>& img_orig, 
-                         bool non_negative = false, const std::vector<ObjFlag>* flags = nullptr);
+                         bool output_ipr = false, const std::vector<ObjFlag>* flags = nullptr);
 
     // prepare the information for the shaked object
     // calculate the boundary of ROI

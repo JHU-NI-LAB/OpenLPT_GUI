@@ -142,7 +142,7 @@ Shake::runShake(std::vector<std::unique_ptr<Object3D>>& objs,
 
 void Shake::calResidueImage(const std::vector<std::unique_ptr<Object3D>>& objs,
                             const std::vector<Image>& img_orig,
-                            bool non_negative, const std::vector<ObjFlag>* flags)
+                            bool output_ipr, const std::vector<ObjFlag>* flags)
 {
     const int n_cam = static_cast<int>(_cams.size());
     // std::cout << n_cam << std::endl;
@@ -163,7 +163,8 @@ void Shake::calResidueImage(const std::vector<std::unique_ptr<Object3D>>& objs,
     #pragma omp parallel for if(!omp_in_parallel())
     for (int k = 0; k < n_cam; ++k) {
         // 4.1 Skip inactive cameras, but keep slot alignment (residual stays as original)
-        if (!_cams[k]._is_active) continue;
+        // for IPR output, we need to calculate all cameras
+        if (!_cams[k]._is_active && !output_ipr) continue; 
 
         Image&       res  = _img_res_list[k]; // get the reference
         const Image& orig = img_orig[k];
@@ -202,7 +203,7 @@ void Shake::calResidueImage(const std::vector<std::unique_ptr<Object3D>>& objs,
                     const double o = orig(r, c);
                     const double cand = o - p;
                     if (cand < rr) rr = cand;
-                    if (non_negative && rr < 0) rr = 0.0;
+                    if (output_ipr && rr < 0) rr = 0.0; // IPR output: clamp negative to 0
                 }
             }
         } // end for each object

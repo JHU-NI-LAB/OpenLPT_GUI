@@ -119,7 +119,7 @@ runSingleIPRIteration(const std::vector<Camera>& cams,
     const clock_t t_match_end = clock();
     const double  t_sec = double(t_match_end - t_match_start) / CLOCKS_PER_SEC;
     
-    std::cout << "\t\tMatched " << objs_out.size() << " objects. (" << t_sec << " s)";
+    std::cout << "\t\tMatched " << objs_out.size() << " objects. ( 2D tol: " << cfg._sm_param.tol_2d_px << ", t:" << t_sec << " s)";
 
     // Objs_out and o2d_list_all are used for obtaining bubble reference image, or camera calibration, or OTF parameter
     switch (cfg.kind()) {
@@ -164,11 +164,11 @@ runSingleIPRIteration(const std::vector<Camera>& cams,
     const clock_t t_shake_start = clock();
 
     std::vector<ObjFlag> flags = shaker.runShake(objs_out, images); // must honor cams[cam_id]._is_active
-    
-    images = shaker.calResidualImage(objs_out, images);   // get updated images with contructed objects removed.
 
     // 4) remove ghost and repeated objects
     filterOutInvalid(objs_out, flags);
+
+    images = shaker.calResidualImage(objs_out, images);   // get updated images with contructed objects removed.
 
     const clock_t t_shake_end = clock();
     std::cout << "\tAfter shaking: " << objs_out.size() << " objects remain. ("
@@ -199,18 +199,21 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
     // drop = 0 .. max_drop; drop=0 means "full set" case.
     // The maximum we can drop is limited by cfg.n_reduced (from ObjectConfig) and by keeping at least 2 cameras.
     const int max_drop = std::min(ipr_param.n_cam_reduced, std::max(0, static_cast<int>(n_cam) - 2));
+    const int orig_match_cam_count = cfg._sm_param.match_cam_count;
 
     for (int drop = 0; drop <= max_drop; ++drop)
     {
         const size_t K = n_cam - static_cast<size_t>(drop); // subset size (>=2)
         std::vector<std::vector<int>> subsets;
-        // std::cout<< "Generating subsets of size " << K << " from " << n_cam << " cameras.\n";
-        myMATH::generateCombinations(n_cam, K, subsets);            // when K==n_cam -> single subset [0..n_cam-1]
+        myMATH::generateCombinations(n_cam, K, subsets); 
 
         // Choose loop count: full set vs reduced set
         const int loops = (drop == 0) ? ipr_param.n_loop_ipr : ipr_param.n_loop_ipr_reduced;
 
         std::cout << ((drop == 0) ? "Full cameras" : "Reduced cameras") << "\n";
+        // match_cam_count must not be larger than active cameras
+        int match_cam_count = std::min(orig_match_cam_count, static_cast<int>(K));
+        cfg._sm_param.match_cam_count = match_cam_count;
 
         for (size_t si = 0; si < subsets.size(); ++si)
         {
@@ -220,7 +223,9 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
             CameraUtil::setActiveSubset(_cam_list, ids);
 
             // for obtaining bubble reference image or OTF
-            const int previous_match_cam_count = cfg._sm_param.match_cam_count;
+            // we need to use all cameras
+            // so temporarily change match_cam_count to all active cameras
+            bool calibration_loop = false;
             if (drop == 0) {
                 switch (cfg.kind()) {
                     case ObjectKind::Bubble: {
@@ -228,7 +233,8 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
 
                         if (!bb_cfg._bb_ref_img._is_valid) {
                             // need to locate 2D points on all cameras to get bubble reference images
-                            cfg._sm_param.match_cam_count = static_cast<int>(_cam_list.size()); 
+                            cfg._sm_param.match_cam_count = static_cast<int>(_cam_list.size());
+                            calibration_loop = true; 
                         }
                         break;
                     }
@@ -237,7 +243,6 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
                 }
             }
 
-
             std::cout << "Combination " << si << " cams=[";
             for (size_t k = 0; k < ids.size(); ++k) {
                 if (k) std::cout << ", ";
@@ -245,12 +250,20 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
             }
             std::cout << "]\n";
 
+            double tol_2d_px_orig = cfg._sm_param.tol_2d_px;
+
             for (int loop = 0; loop < loops; ++loop)
             {
+                // gradually increase 2D tolerance, final loop = tol_2d_px_orig + 1 px
+                cfg._sm_param.tol_2d_px = tol_2d_px_orig + 1.0 / loops * loop; // 1.0 is used for "double" calculation
+
                 auto objs = runSingleIPRIteration(_cam_list, images, cfg); // images will be updated for every loop.
 
-                cfg._sm_param.match_cam_count = previous_match_cam_count; // reset back if changed
-
+                if (calibration_loop) {
+                    cfg._sm_param.match_cam_count = match_cam_count; // reset back after calibration
+                    calibration_loop = false;
+                }
+                
                 if (!objs.empty()) {
                     all_objs.insert(all_objs.end(),
                                     std::make_move_iterator(objs.begin()),
@@ -259,8 +272,11 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
                 std::cout << "\tLOOP=" << loop
                           << ": TOTAL OBJECTS = " << all_objs.size() << "\n";
             }
+            cfg._sm_param.tol_2d_px = tol_2d_px_orig; // reset back
         }
     }
+
+    cfg._sm_param.match_cam_count = orig_match_cam_count; // reset back
 
     // Leave system in a well-defined state: all cameras active on exit
     CameraUtil::setActiveAll(_cam_list);

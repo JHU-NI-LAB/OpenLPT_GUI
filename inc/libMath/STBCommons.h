@@ -139,7 +139,7 @@ struct AxisLimit
         z_max = limit.z_max;
     };
 
-    bool check (double x, double y, double z)
+    bool check (double x, double y, double z) const
     {
         if (x > x_max || x < x_min || 
             y > y_max || y < y_min || 

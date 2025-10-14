@@ -72,10 +72,11 @@ struct PFParam
 
 // StereoMatch configuration (minimal)
 struct SMParam {
-    int    match_cam_count   = 3;   // number of cams to build per candidate (>=2, <= #active)
+    int    match_cam_count   = 4;   // number of cams to build per candidate (>=2, <= #active)
     int    idmap_cell_px     = 4;   // cell size in pixels for IDMap bucketing
     double tol_2d_px         = 1.0; // strip half-width in pixels (used inside IDMap)
     double tol_3d_mm         = 2.4e-2; // final triangulation tolerance (mm)
+    AxisLimit limit;
     // ... add other knobs if needed
 };
 

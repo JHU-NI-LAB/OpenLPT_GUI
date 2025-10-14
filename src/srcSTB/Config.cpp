@@ -193,6 +193,8 @@ ObjectConfig::readCommonConfig(const std::string& filepath, BasicSetting& settin
         // StereoMatch params
         _sm_param.tol_2d_px           = std::stod(lines[id++]);
         _sm_param.tol_3d_mm           = std::stod(lines[id++]) * settings._voxel_to_mm; // in mm
+        _sm_param.match_cam_count     = std::min(_sm_param.match_cam_count, settings._n_cam); // cannot be larger than n_cam
+        _sm_param.limit               = settings._axis_limit;
 
         _ipr_param.n_cam_reduced      = std::stoi(lines[id++]);
         _ipr_param.n_loop_ipr_reduced = std::stoi(lines[id++]);

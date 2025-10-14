@@ -358,13 +358,8 @@ void triangulation(Pt3D& pt_world, double& error,
                    std::vector<Line3D> const& line_of_sight_list)
 {
     int n = line_of_sight_list.size();
-    if (n < 2)
-    {
-        std::cerr << "myMATH::Triangulation: "
-                  << "Cannot triangulate with less than 2 lines of sight!"
-                  << std::endl;
-        throw error_size;
-    }
+    REQUIRE(n >= 2, ErrorCode::InvalidArgument,"myMATH::Triangulation: "
+                        "Cannot triangulate with less than 2 lines of sight!");
 
     Matrix<double> mtx(3, 3, 0);
     Matrix<double> temp(3,3,0);
@@ -392,7 +387,7 @@ void triangulation(Pt3D& pt_world, double& error,
     pt_world = myMATH::inverse(mtx) * pt_3d;
 
     // calculate errors 
-    error = 0;
+    error = 0.0;
     Pt3D diff_vec;
     for (int i = 0; i < n; i ++)
     {
@@ -400,9 +395,9 @@ void triangulation(Pt3D& pt_world, double& error,
         double h = std::pow(diff_vec.norm(),2)
             - std::pow(myMATH::dot(diff_vec, line_of_sight_list[i].unit_vector),2);
             
-        if (h < 0 && h >= - SMALLNUMBER)
+        if (h < 0.0 && h >= - SMALLNUMBER)
         {
-            h = 0;
+            h = 0.0;
         }
         else if (h < - SMALLNUMBER)
         {
@@ -418,9 +413,9 @@ void triangulation(Pt3D& pt_world, double& error,
             h = std::sqrt(h);
         }
 
-        error += h;
+        error += h * h;
     }
-    error /= n;
+    error = std::sqrt(error / n);
 }
 
 // Find the cross points of two 2d lines

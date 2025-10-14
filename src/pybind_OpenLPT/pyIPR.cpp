@@ -12,19 +12,33 @@
 namespace py = pybind11;
 
 void bind_IPR(py::module_& m) {
-    py::class_<IPR>(m, "IPR")
-        // 若 IPR 内部保存对 cams 的引用，keep_alive 能避免悬垂
-        .def(py::init<std::vector<Camera>&>(),
-             py::arg("cams"),
-             py::keep_alive<1,2>())
+    py::class_<IPR>(m, "IPR", py::dynamic_attr())
+        .def(
+            "__init__",
+            [](py::handle self,
+               const std::vector<Camera>&                                   cams_in)
+            {
+                auto cams_keep = std::make_shared<std::vector<Camera>>(cams_in);
 
-        // 直接转发（假设签名不含 unique_ptr 入参）
-        .def("run_ipr",
+                new (self.cast<IPR*>()) IPR(*cams_keep);
+
+                py::setattr(
+                    self, "_keep_cams",
+                    py::capsule(
+                        new std::shared_ptr<std::vector<Camera>>(std::move(cams_keep)),
+                        [](void* p){ delete static_cast<std::shared_ptr<std::vector<Camera>>*>(p); }
+                    )
+                );
+            },
+            py::arg("cams")
+        )
+        
+        .def("runIPR",
              &IPR::runIPR,
              py::arg("cfg"), py::arg("images"))
 
-        // 适配器：Python 传 list[Object3D] -> 绑定层重建 vector<unique_ptr<Object3D>>
-        .def("save_obj_info",
+        
+        .def("saveObjInfo",
              [](IPR& self,
                 const std::string& filename,
                 const std::vector<Object3D*>& objs,   // Python: list[Bubble3D/...]

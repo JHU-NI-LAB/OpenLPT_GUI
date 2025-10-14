@@ -1,4 +1,5 @@
 #include <iterator>
+#include <array>
 #include "StereoMatch.h"
 #include "omp.h"
 
@@ -74,13 +75,16 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
 
     // ---- Stage A + B: build match candidates per reference observation, then check on remaining cams. ----
     const auto& ref_obs = _obj2d_list[ref_cam];
-    std::vector<std::vector<int>> match_candidates;
-    match_candidates.clear();
-    //match_candidates.reserve(estimate_total_candidates);
 
     // Prepare per-thread buckets (no sharing between threads)
     const int T = std::max(1, omp_get_max_threads());
-    std::vector<std::vector<std::vector<int>>> thread_buckets(T);
+
+    // bind match ids and e_check (triangulation error) together, guarantee the same order
+    struct MatchWithScore {
+        std::vector<int> ids;
+        double           e_check = 0.0;
+    };
+    std::vector<std::vector<MatchWithScore>> thread_buckets(T);
 
     #pragma omp parallel num_threads(T)
     {
@@ -98,11 +102,12 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
             buildMatch(match_candidate_id, build_candidates); // must be thread-safe
 
             // Check on remaining active cams (existence / object-specific light checks).
-            std::vector<std::vector<int>> selected;      // per-iter local
+            std::vector<MatchWithScore> selected;      // per-iter local
             selected.reserve(build_candidates.size());
             for (auto& cand : build_candidates) {
-                if (!checkMatch(cand)) continue;
-                selected.emplace_back(std::move(cand));
+                double e_check = 0.0;
+                if (!checkMatch(static_cast<const std::vector<int>&>(cand), e_check)) continue;
+                selected.emplace_back(MatchWithScore{ std::move(cand), e_check });
             }
 
             // Move this thread's selected candidates into its own bucket (no lock)
@@ -114,18 +119,34 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
         }
     } // parallel region ends
 
-    // Flatten buckets sequentially (single-thread). 不需要预估；若想快一点，这里可先统计总数再一次性 reserve。
-    match_candidates.clear();
-    // 可选优化：size_t total = 0; for (auto& b : thread_buckets) total += b.size(); match_candidates.reserve(total);
-    for (auto& b : thread_buckets) {
-        match_candidates.insert(match_candidates.end(),
-            std::make_move_iterator(b.begin()),
-            std::make_move_iterator(b.end()));
+    // Flatten buckets sequentially (single-thread). 
+    std::vector<MatchWithScore> match_score_all;
+    {
+        size_t total = 0;
+        for (auto& b : thread_buckets) total += b.size();
+        match_score_all.reserve(total);
+        for (auto& b : thread_buckets) {
+            match_score_all.insert(match_score_all.end(),
+                       std::make_move_iterator(b.begin()),
+                       std::make_move_iterator(b.end()));
+        }
     }
-    std::sort(match_candidates.begin(), match_candidates.end()); // make sure the sequence the same everytime running the code
+    // make sure the sequence the same everytime running the code
+    std::sort(match_score_all.begin(), match_score_all.end(),
+              [](const MatchWithScore& a, const MatchWithScore& b){ return a.ids < b.ids; }); 
+
+    // ---- Split match_score_all into two parallel arrays for pruning. ----
+    std::vector<std::vector<int>> match_candidates;
+    std::vector<double>           e_checks;
+    match_candidates.reserve(match_score_all.size());
+    e_checks.reserve(match_score_all.size());
+    for (auto& m : match_score_all) {
+        match_candidates.push_back(std::move(m.ids)); 
+        e_checks.push_back(m.e_check);
+    }
 
     // ---- Global pruning (disjoint usage of 2D points, pick best by triangulation error, etc.). ----
-    std::vector<std::vector<int>> selected = pruneMatch(match_candidates);
+    std::vector<std::vector<int>> selected = pruneMatch(match_candidates, e_checks);
 
     // ---- Final triangulation and Object3D construction (all active cams participate). ----
     std::vector<std::unique_ptr<Object3D>> out = triangulateMatch(selected);
@@ -167,6 +188,7 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
         // Chosen path so far (parallel arrays)
         std::vector<int>    chosen_cams;   // camera ids on this path (order = build order)
         std::vector<int>    chosen_ids;    // 2D indices aligned with chosen_cams
+        std::vector<Pt2D>    chosen_pts;   // 2D points aligned with chosen
         std::vector<Line3D> los3d;         // LOS for each chosen pair (same order)
 
         // Remaining build cameras to choose from
@@ -190,13 +212,16 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
     {
         const Pt2D& p = _obj2d_list[ref_cam][ref_id]->_pt_center;
         root.los3d.push_back(_cams[ref_cam].lineOfSight(p));
+        root.chosen_pts = { p };
     }
 
     // Select the 2nd build camera by "shortest projected LOS segment", then enumerate its candidates.
     if (!root.rem_cams.empty()) {
         root.target_cam = selectSecondCameraByLineLength(root.los3d.front(), root.rem_cams);
         if (root.target_cam >= 0) {
-            enumerateCandidatesOnCam(root.los3d, root.target_cam, root.candidates);
+            enumerateCandidatesOnCam(root.los3d, root.target_cam,
+                             root.chosen_cams, root.chosen_pts, 
+                             root.candidates);
             root.cand_idx = 0;
         }
     }
@@ -302,6 +327,7 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
         Frame nxt;
         nxt.chosen_cams = fr.chosen_cams;
         nxt.chosen_ids  = fr.chosen_ids;
+        nxt.chosen_pts  = fr.chosen_pts;
         nxt.los3d       = fr.los3d;
         nxt.rem_cams    = fr.rem_cams;
 
@@ -312,6 +338,7 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
         {
             const Pt2D& p = _obj2d_list[cam][pid]->_pt_center;
             nxt.los3d.push_back(_cams[cam].lineOfSight(p));
+            nxt.chosen_pts.push_back(p);
         }
 
         // Remove this cam from the remaining pool
@@ -350,7 +377,9 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
         }
 
         // Enumerate candidates ONLY for the selected next camera.
-        enumerateCandidatesOnCam(nxt.los3d, nxt.target_cam, nxt.candidates);
+        enumerateCandidatesOnCam(nxt.los3d, nxt.target_cam,
+                         nxt.chosen_cams, nxt.chosen_pts, 
+                         nxt.candidates);
         if (nxt.candidates.empty()) {
             // Dead end for this candidate; try the next one in current frame.
             continue;
@@ -366,10 +395,11 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
 // of all projected strips. Geometry checks & dedup are done inside IDMap::visitPointsInRowSpans.
 void StereoMatch::enumerateCandidatesOnCam(const std::vector<Line3D>& los3d,
                                            int                         target_cam,
+                                           const std::vector<int>&     chosen_cams,
+                                           const std::vector<Pt2D>&    chosen_pts,
                                            std::vector<int>&           out_candidates) const
 {
     out_candidates.clear();
-
     if (target_cam < 0 || target_cam >= static_cast<int>(_idmaps.size())) return;
     IDMap* idm = _idmaps[target_cam].get();
     if (!idm || los3d.empty()) return;
@@ -389,16 +419,27 @@ void StereoMatch::enumerateCandidatesOnCam(const std::vector<Line3D>& los3d,
 
     // 3) Visit-and-collect with precise distance test and dedup done by IDMap
     idm->visitPointsInRowSpans(spans, lines_px, _obj_cfg._sm_param.tol_2d_px, out_candidates);
+    if (out_candidates.empty()) return;
 
-    // Optional: deterministic order if you prefer stable outputs
-    // std::sort(out_candidates.begin(), out_candidates.end());
+    // 4) check back=projection to chosen cams & points
+    int write = 0;
+    for (int pid : out_candidates) {
+        const Object2D* o = _obj2d_list[target_cam][pid];
+        if (!o) continue;
+        const Pt2D& q_t = o->_pt_center;
+        if (checkBackProjection(target_cam, q_t, chosen_cams, chosen_pts)) {
+            out_candidates[write++] = pid;
+        }
+    }
+    out_candidates.resize(write);
 }
 
 // Verify: for every remaining active (check) camera, the intersection of all
 // projected strips (from already chosen LOS) contains at least one 2D point.
 // candidate_ids: size == n_cams, chosen build cams have non-negative ids, others -1.
-bool StereoMatch::checkMatch(std::vector<int>& candidate_ids) const
+bool StereoMatch::checkMatch(const std::vector<int>& candidate_ids, double& out_e_check) const
 {
+    out_e_check = 0.0;
     const int n_cams = static_cast<int>(_cams.size());
 
     // ---- 1) Gather LOS from chosen (build) cameras ----
@@ -415,63 +456,303 @@ bool StereoMatch::checkMatch(std::vector<int>& candidate_ids) const
         // but guard against malformed input.
         return false;
     }
+    if (los3d.size() == n_cams) { // all cams are used in build → nothing to check
+        Pt3D  Xw{};
+        myMATH::triangulation(Xw, out_e_check, los3d);
+        if (out_e_check > _obj_cfg._sm_param.tol_3d_mm) return false;
+        if (!(_obj_cfg._sm_param.limit.check(Xw[0], Xw[1], Xw[2]))) return false; // if out of bounds
+        return true;
+    }
+
+    // Prepare chosen cams & points for back-projection checks
+    std::vector<int>  chosen_cams;      std::vector<Pt2D> chosen_pts;
+    chosen_cams.reserve(los3d.size());  chosen_pts.reserve(los3d.size());
+    for (int c = 0; c < n_cams; ++c) {
+        const int pid = candidate_ids[c];
+        if (pid >= 0) {
+            chosen_cams.push_back(c);   chosen_pts.push_back(_obj2d_list[c][pid]->_pt_center);
+        }
+    }
+
+    const double tol_3d_mm = _obj_cfg._sm_param.tol_3d_mm;
 
     // ---- 2) For every active camera that is NOT chosen yet (check cameras) ----
     for (int cam = 0; cam < n_cams; ++cam) {
-        if (!_cams[cam]._is_active)    continue; // inactive -> ignore
+        if (!_cams[cam]._is_active)      continue; // inactive -> ignore
         if (candidate_ids[cam] >= 0)     continue; // already used in build -> skip
 
-        // IDMap must exist for this camera
-        IDMap* idm = (cam < static_cast<int>(_idmaps.size())) ? _idmaps[cam].get() : nullptr;
-        if (!idm) return false; // defensive: no map to verify against
-
-        // ---- 3) Project all LOS onto this camera as 2D lines ----
-        std::vector<Line2D> lines_px;
-        buildLinesOnCam(los3d, cam, lines_px);
-        if (lines_px.empty()) return false;
-
-        // ---- 4) Compute per-row strip intersection (CELL space) ----
-        std::vector<IDMap::RowSpan> spans;
-        idm->computeStripIntersection(lines_px, _obj_cfg._sm_param.tol_2d_px, spans);
-
-        bool any_valid = false;
-        for (const auto& s : spans) {
-            if (s.x_min <= s.x_max) { any_valid = true; break; }
-        }
-        if (!any_valid) return false; // empty intersection on this check cam
-
-        // ---- 5) Visit points inside intersection with precise geometry & dedup (inside IDMap) ----
+        // obtain points in the intersection of LOS from chosen cameras ----
         std::vector<int> inliers;
-        idm->visitPointsInRowSpans(spans, lines_px, _obj_cfg._sm_param.tol_2d_px, inliers);
+        enumerateCandidatesOnCam(los3d, /*target_cam=*/cam,
+                         chosen_cams, chosen_pts,
+                         inliers);
 
         // Optional: add object-specific quick filter here (e.g., bubble radius coherence per-cam).
         // if (!inliers.empty() && !objectCheckOnCheckCam(cam, inliers, candidate_ids)) { return false; }
 
         if (inliers.empty()) return false; // this check cam has no supporting observation
+
+        // get the best triangulation error among all inliers on this check cam
+        // if the best is larger than tol_3d_mm, reject this candidate
+        double best_err_c = std::numeric_limits<double>::infinity();
+
+        for (int pid : inliers) {
+            const Pt2D& q = _obj2d_list[cam][pid]->_pt_center;
+            Line3D los_q  = _cams[cam].lineOfSight(q);
+
+            std::vector<Line3D> los_all = los3d;
+            los_all.push_back(los_q);
+
+            Pt3D  Xw{};
+            double err = 0.0;
+            myMATH::triangulation(Xw, err, los_all);
+
+            if (!std::isfinite(err)) continue;
+            if (!(_obj_cfg._sm_param.limit.check(Xw[0], Xw[1], Xw[2]))) continue; // if out of bounds
+
+            if (err < best_err_c) best_err_c = err;
+        }
+
+        if (!std::isfinite(best_err_c) || best_err_c > tol_3d_mm) return false; // if the best is larger than tol_3d_mm, reject this candidate
+        if (best_err_c > out_e_check) out_e_check = best_err_c; // E_check = 各相机 best 的最大
     }
 
     // ---- 6) All check cameras have ≥1 supporting point ----
     return true;
 }
 
-// Select a disjoint, high-quality subset from the raw match candidates.
-// - Uses MatchPruner (greedy + local 1↔2, 1↔1 improvements) with triangulation error only.
-// - Assumes _cams/_obj2d_list are already bound by StereoMatch::match() before calling.
+// -----------------------------------------------------------------------------
+// StereoMatch::pruneMatch
+//
+// Greedy selection under 2D-point exclusivity, ordered by:
+//    1) pct_score  (mean percentile among competitors on each used 2D point) ASC
+//    2) E_check    (triangulation error from checkMatch) ASC
+//    3) input index (stable) ASC
+//
+// Notes:
+//  - Inputs:
+//      * match_candidates: size M; each entry is size n_cams, ids[c] = -1 if unused
+//      * e_checks       : size M; e_checks[j] is E_check for candidate j
+//  - pct_score ∈ [0,1], lower is better; if a candidate is the "best" on every
+//    2D point it uses (under E_check), its pct_score will approach 0.
+//  - We use small numeric tolerances (rtol/atol) when comparing floating values
+//    to make "ties" robust.
+//  - Memory: builds reverse indices point->candidates; large scenes with many
+//    candidates and 2D points may use noticeable memory.
+// -----------------------------------------------------------------------------
 std::vector<std::vector<int>>
-StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates) const
+StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
+                        const std::vector<double>&           e_checks) const
 {
-    // Basic guard: match() should have bound these; keep a defensive check.
-    if (match_candidates.empty()) return {};
+    using std::size_t;
 
-    // Tunables: keep small and conservative; expose if you want later.
-    MatchPrunerOptions opt;
-    opt.topK_per_point = 12; // cap branching during 1↔2 growth
-    opt.max_passes           = 2;  // growth + quality passes
+    const size_t M      = match_candidates.size();
+    const int    n_cams = static_cast<int>(_cams.size());
 
-    // Run pruner.
-    MatchPruner pruner(_cams, _obj2d_list, opt);
-    return pruner.prune(match_candidates);
+    std::vector<std::vector<int>> empty_out;
+    if (M == 0) return empty_out;
+
+    // Sanity: e_checks must align with candidates
+    if (e_checks.size() != M) {
+        // Defensive fallback: sizes mismatch → nothing selected
+        return empty_out;
+    }
+
+    // --- Numeric tolerance for robust comparisons ("ties") ---
+    const double rtol = 1e-9;
+    const double atol = 1e-12;
+
+    auto eq_eps = [&](double a, double b) -> bool {
+        // approximately equal
+        const double s = std::max(std::fabs(a), std::fabs(b));
+        return std::fabs(a - b) <= (s * rtol + atol);
+    };
+
+    // -------------------------------------------------------------------------
+    // Step 0) Build per-camera prefix sums to flatten (cam, pid) -> flat index.
+    // flat index f ∈ [0, total_points)
+    // -------------------------------------------------------------------------
+    std::vector<size_t> cam_offsets(static_cast<size_t>(n_cams) + 1, 0);
+    for (int c = 0; c < n_cams; ++c) {
+        cam_offsets[static_cast<size_t>(c) + 1] =
+            cam_offsets[static_cast<size_t>(c)] + _obj2d_list[static_cast<size_t>(c)].size();
+    }
+    const size_t total_points = cam_offsets.back();
+
+    auto flatIndexOf = [&](int cam, int pid) -> size_t {
+        return cam_offsets[static_cast<size_t>(cam)] + static_cast<size_t>(pid);
+    };
+
+    // -------------------------------------------------------------------------
+    // Step 1) For each candidate, gather its used 2D points as flat indices.
+    //         (No triangulation here; E_check is already provided.)
+    // -------------------------------------------------------------------------
+    std::vector<std::vector<size_t>> flats_per_candidate(M);
+
+    // Step 1 can be parallelized safely (each j writes to its own slot)
+    for (size_t j = 0; j < M; ++j) {
+        std::vector<size_t> local_flats;
+        local_flats.reserve(8);
+
+        const auto& ids = match_candidates[j];
+        for (int c = 0; c < n_cams; ++c) {
+            const int pid = (c < (int)ids.size()) ? ids[c] : -1;
+            if (pid < 0) continue;
+
+            const auto& obs_list = _obj2d_list[(size_t)c];
+            if ((size_t)pid >= obs_list.size() || obs_list[(size_t)pid] == nullptr) continue;
+
+            local_flats.push_back(flatIndexOf(c, pid));
+        }
+
+        flats_per_candidate[j] = std::move(local_flats);
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 2) Build reverse index: for each flat 2D point, list the candidates
+    //         that use it. Later we compute percentiles within each list.
+    // -------------------------------------------------------------------------
+    std::vector<std::vector<int>> point_to_candidates(total_points);
+    for (size_t j = 0; j < M; ++j) {
+        for (size_t f : flats_per_candidate[j]) {
+            point_to_candidates[f].push_back(static_cast<int>(j));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 3) Compute pct_score for each candidate:
+    //         For each used point f, consider all candidates that also use f.
+    //         Rank them by E_check ASC (stable for ties), convert rank to
+    //         percentile in [0,1], then pct_score[j] is the mean percentile
+    //         over all points used by candidate j.
+    // -------------------------------------------------------------------------
+    std::vector<double> pct_sum(M, 0.0);
+    std::vector<int>    pct_count(M, 0);
+
+    for (size_t f = 0; f < total_points; ++f) {
+        const auto& idxs = point_to_candidates[f];
+        if (idxs.empty()) continue;
+
+        // Pool only candidates whose E_check is finite
+        std::vector<std::pair<double,int>> pool;
+        pool.reserve(idxs.size());
+        for (int j : idxs) {
+            const double e = e_checks[(size_t)j];
+            if (std::isfinite(e)) pool.emplace_back(e, j);
+        }
+        const int n = (int)pool.size();
+        if (n == 0) continue;
+
+        if (n == 1) {
+            // Single competitor → percentile 0.0
+            const int j = pool[0].second;
+            pct_sum[(size_t)j]   += 0.0;
+            pct_count[(size_t)j] += 1;
+            continue;
+        }
+
+        // Stable sort by E_check; ties keep original order (input index)
+        std::stable_sort(pool.begin(), pool.end(),
+            [&](const auto& A, const auto& B){
+                const double ea = A.first, eb = B.first;
+                if (!eq_eps(ea, eb)) return ea < eb;
+                return A.second < B.second; // tie-break by candidate index for stability
+            });
+
+        // Assign average rank to equal-error blocks, then normalize to [0,1]
+        int k = 0;
+        while (k < n) {
+            int k0 = k, k1 = k + 1;
+            while (k1 < n && eq_eps(pool[k1].first, pool[k0].first)) ++k1;
+
+            const double avg_rank = 0.5 * (double)(k0 + (k1 - 1)); // average of integer ranks
+            const double denom    = (double)(n - 1);
+            const double pct      = (denom > 0.0) ? (avg_rank / denom) : 0.0;
+
+            for (int t = k0; t < k1; ++t) {
+                const int j = pool[(size_t)t].second;
+                pct_sum[(size_t)j]   += pct;
+                pct_count[(size_t)j] += 1;
+            }
+            k = k1;
+        }
+    }
+
+    std::vector<double> pct_score(M, std::numeric_limits<double>::infinity());
+    for (size_t j = 0; j < M; ++j) {
+        if (pct_count[j] > 0) {
+            pct_score[j] = pct_sum[j] / (double)pct_count[j];
+        }
+        // else: stays +inf → will be sorted to the end / ignored
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 4) Sort candidate indices by (pct_score ASC, E_check ASC, input idx ASC)
+    // -------------------------------------------------------------------------
+    std::vector<int> order(M);
+    std::iota(order.begin(), order.end(), 0);
+
+    std::stable_sort(order.begin(), order.end(),
+        [&](int aj, int bj){
+            const double pa = pct_score[(size_t)aj];
+            const double pb = pct_score[(size_t)bj];
+            const bool   af = std::isfinite(pa);
+            const bool   bf = std::isfinite(pb);
+
+            if (af && bf) {
+                if (!eq_eps(pa, pb)) return pa < pb; // lower pct_score first
+            } else if (af) return true;   // finite beats +inf
+              else if (bf) return false;  // +inf goes last
+
+            const double ea = e_checks[(size_t)aj];
+            const double eb = e_checks[(size_t)bj];
+            const bool   aef = std::isfinite(ea);
+            const bool   bef = std::isfinite(eb);
+
+            if (aef && bef) {
+                if (!eq_eps(ea, eb)) return ea < eb; // lower E_check second
+            } else if (aef) return true;
+              else if (bef) return false;
+
+            // final tie-breaker: original index → stable, deterministic
+            return aj < bj;
+        });
+
+    // -------------------------------------------------------------------------
+    // Step 5) Greedy packing with 2D-point exclusivity
+    //         A flat 2D point can be owned by at most one selected candidate.
+    // -------------------------------------------------------------------------
+    std::vector<int> owner(total_points, -1);
+    std::vector<int> chosen; chosen.reserve(M / 10 + 8);
+
+    for (int j : order) {
+        // Skip those with undefined pct_score or E_check
+        if (!std::isfinite(pct_score[(size_t)j])) continue;
+        if (!std::isfinite(e_checks[(size_t)j]))  continue;
+
+        const auto& flats = flats_per_candidate[(size_t)j];
+        if (flats.empty()) continue;
+
+        bool conflict = false;
+        for (size_t f : flats) {
+            if (owner[f] != -1) { conflict = true; break; }
+        }
+        if (conflict) continue;
+
+        // place
+        for (size_t f : flats) owner[f] = j;
+        chosen.push_back(j);
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 6) Materialize output: return the selected candidates
+    // -------------------------------------------------------------------------
+    std::vector<std::vector<int>> out;
+    out.reserve(chosen.size());
+    for (int j : chosen) out.push_back(match_candidates[(size_t)j]);
+    return out;
 }
+
 
 // Triangulate all selected matches, drop those with error > tol_3d,
 // and build Object3D (Tracer3D / Bubble3D) with cloned 2D observations (camera order preserved).
@@ -547,6 +828,8 @@ inline Line2D StereoMatch::makeLine2DFromLOS3D(int cam_id, const Line3D& los) co
         los.pt[1] + los.unit_vector[1],
         los.pt[2] + los.unit_vector[2]
     });
+    // REQUIRE(std::isfinite(a[0]) && std::isfinite(a[1]) && std::isfinite(b[0]) && std::isfinite(b[1]),
+    //         ErrorCode::OutOfRange, "Fail projection.");
     Line2D L;
     L.pt = a;
     L.unit_vector = myMATH::createUnitVector(a, b); // assumed normalized
@@ -617,6 +900,28 @@ bool StereoMatch::TriangulationCheckWithTol(const std::vector<Line3D>& los3d,
     try { myMATH::triangulation(pt, err, los3d); }
     catch (...) { return false; }
     return err <= tol_3d_mm;
+}
+
+bool StereoMatch::checkBackProjection(int          target_cam,
+                         const Pt2D&               q_t,
+                         const std::vector<int>&   chosen_cams,
+                         const std::vector<Pt2D>&  chosen_pts) const
+{
+    if (chosen_cams.empty()) return true;
+
+    const Line3D los_t = _cams[target_cam].lineOfSight(q_t);
+
+    const double tol2 = _obj_cfg._sm_param.tol_2d_px * _obj_cfg._sm_param.tol_2d_px;
+    const size_t K = chosen_cams.size();
+
+    for (size_t i = 0; i < K; ++i) {
+        const int ci = chosen_cams[i];
+        const Pt2D& qi = chosen_pts[i];
+
+        Line2D L = makeLine2DFromLOS3D(ci, los_t);
+        if (myMATH::dist2(qi, L) > tol2) return false;
+    }
+    return true;
 }
 
 // Object-specific lightweight check hook (build stage). Router + stubs.
@@ -706,11 +1011,11 @@ int StereoMatch::selectSecondCameraByLineLength(const Line3D& los_ref,
         std::vector<Pt2D> pts; pts.reserve(4);
         if (std::fabs(ux) > 1e-12) {
             double t = (0.0 - px)/ux;  push_if(0.0, py + t*uy, pts);
-            t = (W   - px)/ux;         push_if(W,   py + t*uy, pts);
+            t = (W - 1 - px)/ux;       push_if(W - 1, py + t*uy, pts);
         }
         if (std::fabs(uy) > 1e-12) {
             double t = (0.0 - py)/uy;  push_if(px + t*ux, 0.0, pts);
-            t = (H   - py)/uy;         push_if(px + t*ux, H,   pts);
+            t = (H - 1 - py)/uy;         push_if(px + t*ux, H - 1, pts);
         }
         // de-dup corners
         const double eps = 1e-9;
@@ -808,61 +1113,107 @@ Pt2D IDMap::normalized(const Pt2D& v)
     return Pt2D{ nx * inv, ny * inv };
 }
 
+/**
+ * Compute per-row intersection of K LOS strips in CELL index space.
+ *
+ * For each image row of cells (cell size = _cell_px), this function keeps
+ * the inclusive [x_min, x_max] range of cell indices whose cell *centers*
+ * are within the widened strip of every input 2D line. The widening makes
+ * the test conservative at cell resolution: if *any* point inside a cell
+ * lies within the pixel tolerance `tol_px` of a line, the cell will not be
+ * falsely rejected just because the center is slightly outside the strip.
+ *
+ * Key idea (proj_extent):
+ * -----------------------
+ * Let the line have unit direction u and unit normal n = (-u_y, u_x).
+ * A square cell has half-size (hw, hh) = (0.5*cell_px, 0.5*cell_px).
+ * Any point inside the cell can deviate from the cell center by Δ = (dx, dy)
+ * with |dx| <= hw, |dy| <= hh. The worst-case normal projection is:
+ *
+ *      max_{Δ in cell} | n · Δ | = |n_x| * hw + |n_y| * hh
+ *
+ * We add this worst-case term to the half-width of the strip so that the
+ * center-based distance test remains conservative at cell granularity.
+ */
 void IDMap::computeStripIntersection(const std::vector<Line2D>& lines_px,
                                      double tol_px,
                                      std::vector<RowSpan>& spans) const
 {
+    // Start with full-span on every row (inclusive indices)
     spans.assign(_rows_cell, RowSpan{ 0, _cols_cell - 1 });
 
-    const double hw = 0.5 * _cell_px;   // half cell size (px)
-    const double hh = 0.5 * _cell_px;
-    const double to_index = 1.0 / _cell_px;
-    const double eps = 1e-12;
-    const double tol_px_grow = tol_px + 1e-6; // tiny safety for boundaries
+    const double hw       = 0.5 * _cell_px;          // half cell width in pixels
+    const double hh       = 0.5 * _cell_px;          // half cell height in pixels
+    const double to_index = 1.0 / _cell_px;          // pixel -> cell-index scale
+    const double eps      = 1e-12;                   // guard for near-zero division
+    const double tol_px_grow = tol_px + 1e-6;        // tiny safety margin at strip boundary
+    const double eps_c    = 1e-9;                    // bias for robust ceil/floor at boundaries
 
     for (const Line2D& L : lines_px) {
-        // Line normal form: n·x + d = 0
-        const Pt2D u = normalized(L.unit_vector);   // if guaranteed unit, you may skip
-        const Pt2D n{ -u[1], u[0] };                // unit normal
+        // Line in normal form: n · x + d = 0, where n is unit-length
+        const Pt2D u = normalized(L.unit_vector);    // ensure unit direction
+        const Pt2D n{ -u[1], u[0] };                 // unit normal
         const double d = -(n[0]*L.pt[0] + n[1]*L.pt[1]);
 
         for (int cy = 0; cy < _rows_cell; ++cy) {
             RowSpan& row = spans[cy];
-            if (row.x_min > row.x_max) continue; // already invalid
+            if (row.x_min > row.x_max) continue;     // already empty for this row
 
+            // Distance from the cell center (cx+0.5, cy+0.5) to the infinite line,
+            // measured along the unit normal n.
+            // cx, cy is the cell location, x_c, y_c is the pixel location
             const double y_c = (cy + 0.5) * _cell_px;
-            const double C   = n[1] * y_c + d;  // note: |n * c + d| is the distance to the line from point c(cx, cy) 
+            // Normal-form of a 2D line: n · x + d = 0, with unit normal n = (-u_y, u_x).
+            // For a fixed image row we set y = y_c (the row's cell-center y). Then the
+            // signed perpendicular distance of a cell-center (x, y_c) to the line is
+            //     n_x * x + n_y * y_c + d.
+            // The term below precomputes the part that is constant across the row
+            // (independent of x), so the per-column distance becomes | n_x * x + C |.
+            // If |n_x| < eps, the distance does not depend on x (horizontal strip).
+            const double C   = n[1] * y_c + d; // note: |n * c + d| is the distance to the line from point c(cx, cy)
+
+            // --- proj_extent explained ---
+            // Worst-case extra distance between any point in the cell and the cell center
+            // along the normal direction n. This enlarges the strip so that using the
+            // center test is conservative at cell resolution.
             const double proj_extent = std::fabs(n[0]) * hw + std::fabs(n[1]) * hh;
-            const double T   = tol_px_grow + proj_extent;
+
+            // Effective half-width: pixel tolerance + worst-case cell deviation + tiny safety
+            const double T = tol_px_grow + proj_extent;
 
             int a = 0, b = _cols_cell - 1;
 
             if (std::fabs(n[0]) < eps) {
-                // Horizontal strip (independent of x): whole row if |C| <= T, else invalidate row
+                // Horizontal strip: independent of x
+                // Accept whole row if |C| <= T, otherwise invalidate the row
                 if (std::fabs(C) > T) { row.x_min = 1; row.x_max = 0; continue; }
                 // else keep [0, cols-1]
             } else {
-                // Allowed center-x (pixels): x ∈ [(-T-C)/n_x, (T-C)/n_x]
+                // Allowed center-x (in pixels): x ∈ [(-T - C)/n_x, (T - C)/n_x]
                 double x_left  = (-T - C) / n[0];
                 double x_right = ( T - C) / n[0];
                 if (x_left > x_right) std::swap(x_left, x_right);
 
-                // Map to cell index interval: center of cx is (cx+0.5)*cell_px
-                a = static_cast<int>(std::ceil( x_left  * to_index - 0.5 ));
-                b = static_cast<int>(std::floor(x_right * to_index - 0.5 ));
+                // Map to cell indices: center of cell cx is (cx + 0.5) * cell_px
+                // eps_c nudges the ceil/floor to be robust against floating rounding at boundaries.
+                // ceil and floor is used because proj_extent has already enlarged the range
+                a = static_cast<int>(std::ceil( x_left  * to_index - 0.5 - eps_c));
+                b = static_cast<int>(std::floor(x_right * to_index - 0.5 + eps_c));
 
+                // Clamp to valid column range
                 a = std::max(0, a);
                 b = std::min(_cols_cell - 1, b);
 
-                if (a > b) { row.x_min = 1; row.x_max = 0; continue; }
+                if (a > b) { row.x_min = 1; row.x_max = 0; continue; } // no overlap on this row
             }
 
-            // Intersect with existing span
+            // Intersect with the existing span on this row
             row.x_min = std::max(row.x_min, a);
             row.x_max = std::min(row.x_max, b);
         }
     }
 }
+
 
 void IDMap::visitPointsInRowSpans(const std::vector<RowSpan>& spans,
                                   const std::vector<Line2D>&  lines_px,
@@ -917,443 +1268,4 @@ void IDMap::visitPointsInRowSpans(const std::vector<RowSpan>& spans,
             }
         }
     }
-}
-
-// ---------------- ctor ----------------
-
-// ---------------- ctor ----------------
-MatchPruner::MatchPruner(const std::vector<Camera>& cams,
-                         const std::vector<std::vector<const Object2D*>>& obj2d_list,
-                         MatchPrunerOptions opts)
-: _cams(cams), _obj2d(obj2d_list), _opt(opts)
-{
-    if (_cams.size() != _obj2d.size())
-        throw std::runtime_error("MatchPruner: cams and obj2d_list size mismatch.");
-    buildFlatIndexMap();         // fills _cam_offsets, _n_points_total
-    // Build LOS cache once (can be rebuilt if inputs change)
-    _los_cache.resize(_n_points_total);
-    const int n_cams = int(_cams.size());
-    for (int cam = 0; cam < n_cams; ++cam) {
-        for (size_t pid = 0; pid < _obj2d[cam].size(); ++pid) {
-            const size_t f = _cam_offsets[size_t(cam)] + pid;
-            const Pt2D& q = _obj2d[cam][pid]->_pt_center;
-            _los_cache[f] = _cams[cam].lineOfSight(q);
-        }
-    }
-    _los_cached = true;
-}
-
-// ------------- public entry ------------
-std::vector<std::vector<int>>
-MatchPruner::prune(const std::vector<std::vector<int>>& match_candidates)
-{
-    if (match_candidates.empty()) return {};
-
-    // 0) Candidate infos (flat 2D points + tri error) with validation
-    buildCandidateInfos(match_candidates);
-
-    if (_C.empty()) return {};
-
-    // 1) Reverse index + scarcity (depends on _C, _cam_offsets)
-    buildReverseIndexAndScarcity();
-
-    // 2) Greedy packing (maximize count first)
-    greedySelect();
-
-    // 3) Local improvements (grow then quality swap)
-    improveSelect();
-
-    // 4) Materialize output
-    std::vector<std::vector<int>> out;
-    out.reserve(_chosen_list.size());
-    for (int j : _chosen_list) out.push_back(_C[size_t(j)].ids);
-    return out;
-}
-
-// ------------- pipeline steps -------------
-void MatchPruner::buildCandidateInfos(const std::vector<std::vector<int>>& match_candidates)
-{
-    const int n_cams = int(_cams.size());
-    _C.clear();
-    _C.reserve(match_candidates.size());
-    _scratch_los.clear();  _scratch_los.reserve(8);
-    _scratch_flats.clear(); _scratch_flats.reserve(8);
-
-    for (size_t i = 0; i < match_candidates.size(); ++i) {
-        const auto& ids = match_candidates[i];
-        if (int(ids.size()) != n_cams)
-            throw std::runtime_error("MatchPruner: candidate size != n_cams.");
-
-        int used = 0;
-        for (int c = 0; c < n_cams; ++c) {
-            const int pid = ids[c];
-            if (pid < 0) continue;
-            if (size_t(pid) >= _obj2d[c].size() || _obj2d[c][pid] == nullptr)
-                throw std::runtime_error("MatchPruner: candidate has out-of-range or null 2D index.");
-            ++used;
-        }
-        if (used < 2) continue; // Drop degenerate candidates (need >=2 views to triangulate)
-
-        CandidateInfo ci;
-        ci.idx = int(i);
-        ci.ids = ids;
-
-        _scratch_flats.clear();
-        _scratch_los.clear();
-        buildFlatsAndLOS(ids, _scratch_flats, _scratch_los);
-        ci.point_flats = _scratch_flats;
-
-        ci.error_mm = triErrorMM(_scratch_los);
-        if (!std::isfinite(ci.error_mm)) continue; // Drop invalid error
-
-        // Defensive dedup (normally unnecessary)
-        std::sort(ci.point_flats.begin(), ci.point_flats.end());
-        ci.point_flats.erase(std::unique(ci.point_flats.begin(), ci.point_flats.end()), ci.point_flats.end());
-
-        _C.push_back(std::move(ci));
-    }
-}
-
-void MatchPruner::buildFlatIndexMap()
-{
-    const int n_cams = int(_obj2d.size());
-    _cam_offsets.assign(size_t(n_cams) + 1, 0);
-    for (int c = 0; c < n_cams; ++c)
-        _cam_offsets[size_t(c)+1] = _cam_offsets[size_t(c)] + _obj2d[c].size();
-    _n_points_total = _cam_offsets.back();
-}
-
-void MatchPruner::buildReverseIndexAndScarcity()
-{
-    // reverse index
-    _point_to_matchCandidates.assign(_n_points_total, {});
-    for (size_t j = 0; j < _C.size(); ++j) {
-        const CandidateInfo& ci = _C[j];
-        for (size_t f : ci.point_flats) _point_to_matchCandidates[f].push_back(int(j)); // store internal index j
-    }
-
-    // degrees
-    _point_degrees.resize(_n_points_total);
-    for (size_t f = 0; f < _n_points_total; ++f)
-        _point_degrees[f] = int(_point_to_matchCandidates[f].size());
-
-    // scarcity = min degree among its 2D points
-    for (CandidateInfo& ci : _C) {
-        int sc = std::numeric_limits<int>::max();
-        for (size_t f : ci.point_flats) sc = std::min(sc, _point_degrees[f]);
-        ci.scarcity = (sc == std::numeric_limits<int>::max()) ? 0 : sc;
-    }
-}
-
-void MatchPruner::greedySelect()
-{
-    // Greedy selection flow:
-    //
-    //   All candidates
-    //       |
-    //       v
-    //   Sort by (scarcity ↑, error_mm ↑, views ↓, idx ↑)
-    //       |
-    //       v
-    //   For each candidate in order:
-    //       |
-    //       +-- canPlace? (all 2D points free) --- No --> skip
-    //       |                                      |
-    //       Yes                                    |
-    //       |                                      |
-    //   place() mark points owned                  |
-    //       |                                      |
-    //   chosen_list.push_back                      |
-    //       |                                      |
-    //      next candidate <-----------------------+
-    //       |
-    //       v
-    //   Initial chosen set (maximal, disjoint)
-
-    const size_t M = _C.size();
-    _owner.assign(_n_points_total, -1);
-    _chosen.assign(M, 0);
-    _chosen_list.clear(); _chosen_list.reserve(M/10 + 8);
-
-    // Order: scarcity ↑, error ↑, views ↓, idx ↑
-    std::vector<int> ord(M);
-    std::iota(ord.begin(), ord.end(), 0);
-    std::sort(ord.begin(), ord.end(),
-              [&](int a, int b){
-                  const auto& A = _C[size_t(a)];
-                  const auto& B = _C[size_t(b)];
-                  if (A.scarcity != B.scarcity) return A.scarcity < B.scarcity;
-                  if (A.error_mm != B.error_mm) return A.error_mm < B.error_mm;
-                  if (A.point_flats.size() != B.point_flats.size()) return A.point_flats.size() > B.point_flats.size();
-                  return A.idx < B.idx;
-              });
-
-    for (int j : ord) {
-        const CandidateInfo& ci = _C[size_t(j)];
-        if (canPlace(ci)) {
-            place(ci, j);            // store internal index j
-            _chosen[size_t(j)] = 1;
-            _chosen_list.push_back(j);
-        }
-    }
-}
-
-void MatchPruner::improveSelect()
-{
-    // Local improvement flow (improveSelect):
-    //
-    //  Repeat (A)+(B) over all unchosen X, up to max_passes times:
-    //    |
-    //    v
-    //   (A) 1↔2 Growth:
-    //         For each unchosen X:
-    //           conflicts = collectConflicts(X)
-    //           |
-    //           +-- No conflict --> place X directly
-    //           |
-    //           +-- >1 conflict  --> skip
-    //           |
-    //           +-- Exactly 1 conflict Y:
-    //                 freed_points = points(Y) \ points(X)
-    //                 |
-    //                 +-- freed_points empty:
-    //                 |       if error(X) < error(Y): swap X for Y (1↔1 quality swap)
-    //                 |
-    //                 +-- freed_points non-empty:
-    //                         pool = gatherTopKOnFreed(freed_points, topK)
-    //                         unplace(Y)
-    //                         if canPlace(X):
-    //                             place(X)
-    //                             find Z in pool that canPlace()
-    //                             if found: place(Z), accept growth (replace Y with X+Z)
-    //                             else: rollback X, restore Y
-    //
-    //    |
-    //    v
-    //   (B) 1↔1 Quality Swap (again):
-    //         For each unchosen X:
-    //           conflicts = collectConflicts(X)
-    //           if exactly 1 conflict Y and error(X) < error(Y):
-    //               swap X for Y
-    //
-    //    |
-    //    +-- No change this pass? --> break
-
-    std::vector<int> conflicts; conflicts.reserve(8);
-    std::vector<size_t> freed;  freed.reserve(8);
-    std::vector<int> pool;      pool.reserve(size_t(_opt.topK_per_point) * 2);
-
-    for (int pass = 0; pass < _opt.max_passes; ++pass) {
-        bool any_change = false;
-
-        // (A) 1↔2 growth
-        for (size_t xj = 0; xj < _C.size(); ++xj) {
-            if (_chosen[xj]) continue;           // only unchosen X
-            const CandidateInfo& X = _C[xj];
-
-            collectConflicts(X, conflicts);
-            if (conflicts.empty()) {
-                // Rare after greedy; accept directly
-                if (canPlace(X)) {
-                    place(X, int(xj));
-                    _chosen[xj] = 1;
-                    _chosen_list.push_back(int(xj));
-                    any_change = true;
-                }
-                continue;
-            }
-            if (conflicts.size() != 1) continue; // keep it simple and fast
-
-            const int yj = conflicts[0];
-            const CandidateInfo& Y = _C[size_t(yj)];
-
-            // Freed 2D points = Points(Y) \ Points(X)
-            freed.clear();
-            for (size_t fy : Y.point_flats) {
-                bool inX = false;
-                for (size_t fx : X.point_flats) { if (fx == fy) { inX = true; break; } }
-                if (!inX) freed.push_back(fy);
-            }
-
-            if (freed.empty()) {
-                // 1↔1 quality swap (inline):
-                // -------------------------
-                // Case: X conflicts with exactly one chosen Y, and no 2D points are freed
-                //       (X and Y occupy essentially the same set of 2D points).
-                // Here, no growth is possible (cannot replace Y with X+Z), so if X has lower
-                // triangulation error than Y, we swap X in for Y directly.
-                // This is an opportunistic quality improvement done inside the 1↔2 loop.
-                if (X.error_mm + 1e-12 < Y.error_mm) {
-                    unplace(Y);
-                    if (canPlace(X)) {
-                        place(X, int(xj));
-                        _chosen[yj] = 0;
-                        _chosen[xj] = 1;
-                        for (int& v : _chosen_list) if (v == yj) { v = int(xj); break; }
-                        any_change = true;
-                    } else {
-                        place(Y, yj); // rollback
-                    }
-                }
-                continue;
-            }
-
-            // 1↔2: remove Y; try X + Z from Top-K touching freed 2D points
-            gatherTopKOnFreed(freed, _opt.topK_per_point, pool);
-
-            bool grew = false;
-            unplace(Y);
-
-            if (canPlace(X)) {
-                place(X, int(xj));
-
-                for (int zj : pool) {
-                    if (zj == yj || zj == int(xj) || _chosen[size_t(zj)]) continue;
-                    const CandidateInfo& Z = _C[size_t(zj)];
-                    if (!canPlace(Z)) continue;
-
-                    // Accept growth: replace Y with X+Z
-                    place(Z, zj);
-                    _chosen[zj] = 1;
-                    _chosen[xj] = 1;
-
-                    for (auto it = _chosen_list.begin(); it != _chosen_list.end(); ++it) {
-                        if (*it == yj) { _chosen_list.erase(it); break; }
-                    }
-                    _chosen_list.push_back(int(xj));
-                    _chosen_list.push_back(zj);
-                    any_change = true;
-                    grew = true;
-                    break;
-                }
-
-                if (!grew) {
-                    unplace(X);
-                    place(Y, yj);
-                }
-            } else {
-                place(Y, yj);
-            }
-        }
-
-        // (B) 1↔1 quality swap (full pass):
-        // ---------------------------------
-        // After all 1↔2 growth attempts are done, the chosen set may have changed,
-        // unlocking new opportunities for 1↔1 quality swaps.
-        // This pass systematically scans all unchosen X again:
-        //   - If X conflicts with exactly one chosen Y
-        //   - And X has strictly lower triangulation error than Y
-        //   → Replace Y with X (same count, lower total error).
-        // This ensures that after maximizing the count in (A), we also minimize
-        // total error without reducing the match count.
-        for (size_t xj = 0; xj < _C.size(); ++xj) {
-            if (_chosen[xj]) continue;
-            const CandidateInfo& X = _C[xj];
-            collectConflicts(X, conflicts);
-            if (conflicts.size() != 1) continue;
-
-            const int yj = conflicts[0];
-            const CandidateInfo& Y = _C[size_t(yj)];
-            if (!(X.error_mm + 1e-12 < Y.error_mm)) continue;
-
-            unplace(Y);
-            if (canPlace(X)) {
-                place(X, int(xj));
-                _chosen[yj] = 0;
-                _chosen[xj] = 1;
-                for (int& v : _chosen_list) if (v == yj) { v = int(xj); break; }
-                any_change = true;
-            } else {
-                place(Y, yj);
-            }
-        }
-
-        if (!any_change) break; // converged
-    }
-}
-
-// ------------- micro helpers -------------
-void MatchPruner::buildFlatsAndLOS(const std::vector<int>& cand_ids,
-                                   std::vector<size_t>& out_flats,
-                                   std::vector<Line3D>& out_los) const
-{
-    out_flats.clear();
-    out_los.clear();
-    const int n_cams = int(_cams.size());
-
-    for (int c = 0; c < n_cams; ++c) {
-        const int pid = cand_ids[c];
-        if (pid < 0) continue;
-        const size_t f = _cam_offsets[size_t(c)] + size_t(pid);
-        out_flats.push_back(f);
-        out_los.push_back(_los_cached ? _los_cache[f] : _cams[c].lineOfSight(_obj2d[c][pid]->_pt_center));
-    }
-
-    // Defensive dedup
-    std::sort(out_flats.begin(), out_flats.end());
-    out_flats.erase(std::unique(out_flats.begin(), out_flats.end()), out_flats.end());
-}
-
-double MatchPruner::triErrorMM(const std::vector<Line3D>& los3d)
-{
-    if (los3d.size() < 2) return std::numeric_limits<double>::infinity();
-    Pt3D pt; double err = 0.0;
-    myMATH::triangulation(pt, err, los3d);
-    return err;
-}
-
-bool MatchPruner::canPlace(const CandidateInfo& ci) const
-{
-    for (size_t f : ci.point_flats) if (_owner[f] != -1) return false;
-    return true;
-}
-
-void MatchPruner::place(const CandidateInfo& ci, int internal_index)
-{
-    for (size_t f : ci.point_flats) _owner[f] = internal_index; // store _C index
-}
-
-void MatchPruner::unplace(const CandidateInfo& ci)
-{
-    for (size_t f : ci.point_flats) _owner[f] = -1;
-}
-
-void MatchPruner::collectConflicts(const CandidateInfo& X, std::vector<int>& out) const
-{
-    out.clear();
-    // X uses ~m 2D points; dedup linearly (m very small, ~2–4)
-    for (size_t f : X.point_flats) {
-        const int j = _owner[f];
-        if (j < 0) continue;
-        bool dup = false;
-        for (int v : out) if (v == j) { dup = true; break; }
-        if (!dup) out.push_back(j);
-    }
-}
-
-void MatchPruner::gatherTopKOnFreed(const std::vector<size_t>& freed_flats, int K,
-                                    std::vector<int>& out_sorted_unique) const
-{
-    out_sorted_unique.clear();
-    std::unordered_set<int> U;
-    U.reserve(size_t(freed_flats.size()) * size_t(K) + 16);
-
-    // For each freed 2D point, locally take best-K by error, then merge & dedup.
-    for (size_t f : freed_flats) {
-        const auto& matchList = _point_to_matchCandidates[f];
-        if ((int)matchList.size() <= K) {
-            for (int j : matchList) U.insert(j);
-        } else {
-            std::vector<int> tmp = matchList;
-            std::nth_element(tmp.begin(), tmp.begin()+K, tmp.end(),
-                [&](int a, int b){ return _C[size_t(a)].error_mm < _C[size_t(b)].error_mm; });
-            tmp.resize(K);
-            for (int j : tmp) U.insert(j);
-        }
-    }
-
-    out_sorted_unique.assign(U.begin(), U.end());
-    std::sort(out_sorted_unique.begin(), out_sorted_unique.end(),
-              [&](int a, int b){ return _C[size_t(a)].error_mm < _C[size_t(b)].error_mm; });
-    if ((int)out_sorted_unique.size() > K) out_sorted_unique.resize(K);
 }

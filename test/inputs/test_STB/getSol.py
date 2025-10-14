@@ -88,7 +88,7 @@ for i in range(ncam):
    
 # %%
 # load tracks 
-tracks = loadmat('tracks_12k5_coarse_250frames.mat')['tracks']
+tracks = loadmat("D:\\0.Code\\Test\\SD0075\\particles_75k_100f.mat")['tracks']
 
 print([np.min(tracks[:,3]),np.max(tracks[:,3])])
 print([np.min(tracks[:,4]),np.max(tracks[:,4])])
@@ -112,7 +112,7 @@ for i in range(ncam):
 # %%
 ncam = 4
 # generate folders
-folder = 'imgFile/'
+folder = 'D:/0.Code/Test/SD0075/imgFile/'
 
 for i in range(ncam):
     dir = folder+'cam'+str(i+1)+'/'
@@ -120,10 +120,10 @@ for i in range(ncam):
         os.makedirs(dir)
 
 # frame range 
-frame_range = [0, 49]
+frame_range = [0, 149]
 
 # generate image file names
-format_str = '../test/inputs/test_STB/imgFile/cam{:d}/img{:05d}.tif\n'
+format_str = 'D:/0.Code/Test/SD0075/imgFile/cam{:d}/img{:05d}.tif\n'
 # format_str_python = '../../test/inputs/test_STB/imgFile/cam{:d}/img{:05d}.tif\n'
 
 for i in range(ncam):
@@ -136,11 +136,11 @@ for i in range(ncam):
             # f.write(format_str_python.format(i+1, j))
         
 
-# # generate tiff images
-# for i in range(frame_range[0], frame_range[1]+1):    
-#     for j in range(ncam):
-#         img = getTiffImg.getTiffImg(tracks[tracks[:,3]==i+1,0:3], rotVecList[j], transVecList[j], camMatList[j], distCoeffList[j], imgSizeList[j])
+# generate tiff images
+for i in range(frame_range[0], frame_range[1]+1):    
+    for j in range(ncam):
+        img = getTiffImg.getTiffImg(tracks[tracks[:,3]==i+1,0:3], rotVecList[j], transVecList[j], camMatList[j], distCoeffList[j], imgSizeList[j])
 
-#         file = folder + 'cam' + str(j+1) + '/img' + '{:05d}'.format(i) + '.tif'
-#         cv2.imwrite(file, img)
+        file = folder + 'cam' + str(j+1) + '/img' + '{:05d}'.format(i) + '.tif'
+        cv2.imwrite(file, img)
 # %%

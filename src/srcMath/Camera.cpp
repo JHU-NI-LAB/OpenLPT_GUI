@@ -3,7 +3,8 @@
 Camera::Camera () {};
 
 Camera::Camera (const Camera& c)
-    : _type(c._type), _pinhole_param(c._pinhole_param), _poly_param(c._poly_param), _pinplate_param(c._pinplate_param) {}
+    : _type(c._type), _pinhole_param(c._pinhole_param), _poly_param(c._poly_param), _pinplate_param(c._pinplate_param),
+    _is_active(c._is_active), _max_intensity(c._max_intensity) {}
 
 Camera::Camera(std::istream& is)
 {
