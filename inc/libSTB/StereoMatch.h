@@ -95,6 +95,7 @@ private:
                              double min_parallax_deg) const;
     bool TriangulationCheckWithTol(const std::vector<Line3D>& los3d,
                                    double tol_3d_mm) const;
+    double triangulationVariance(const std::vector<Line3D>& los) const;
 
     // project point q_t on target_cam back to all chosen cams, check distance to chosen_pts
     bool checkBackProjection(int                       target_cam,

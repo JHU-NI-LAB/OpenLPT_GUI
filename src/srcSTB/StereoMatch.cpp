@@ -105,8 +105,10 @@ std::vector<std::unique_ptr<Object3D>> StereoMatch::match() const
             std::vector<MatchWithScore> selected;      // per-iter local
             selected.reserve(build_candidates.size());
             for (auto& cand : build_candidates) {
-                double e_check = 0.0;
+                double e_check = std::numeric_limits<double>::quiet_NaN();
                 if (!checkMatch(static_cast<const std::vector<int>&>(cand), e_check)) continue;
+                REQUIRE(!std::isnan(e_check), ErrorCode::InvalidArgument,
+                    "StereoMatch::match: checkMatch returned NaN e_check.");
                 selected.emplace_back(MatchWithScore{ std::move(cand), e_check });
             }
 
@@ -188,7 +190,7 @@ void StereoMatch::buildMatch(std::vector<int>& match_candidate_id,
         // Chosen path so far (parallel arrays)
         std::vector<int>    chosen_cams;   // camera ids on this path (order = build order)
         std::vector<int>    chosen_ids;    // 2D indices aligned with chosen_cams
-        std::vector<Pt2D>    chosen_pts;   // 2D points aligned with chosen
+        std::vector<Pt2D>   chosen_pts;   // 2D points aligned with chosen
         std::vector<Line3D> los3d;         // LOS for each chosen pair (same order)
 
         // Remaining build cameras to choose from
@@ -439,7 +441,8 @@ void StereoMatch::enumerateCandidatesOnCam(const std::vector<Line3D>& los3d,
 // candidate_ids: size == n_cams, chosen build cams have non-negative ids, others -1.
 bool StereoMatch::checkMatch(const std::vector<int>& candidate_ids, double& out_e_check) const
 {
-    out_e_check = 0.0;
+    // out_e_check = 0.0;
+    // out_e_check = std::numeric_limits<double>::quiet_NaN();
     const int n_cams = static_cast<int>(_cams.size());
 
     // ---- 1) Gather LOS from chosen (build) cameras ----
@@ -456,11 +459,16 @@ bool StereoMatch::checkMatch(const std::vector<int>& candidate_ids, double& out_
         // but guard against malformed input.
         return false;
     }
-    if (los3d.size() == n_cams) { // all cams are used in build → nothing to check
+
+    int n_active_cam = 0;
+    for (int c = 0; c < n_cams; ++c)
+        if (_cams[c]._is_active) ++n_active_cam;
+    if (los3d.size() == n_active_cam) { // all active cams are used in build → nothing to check
         Pt3D  Xw{};
         myMATH::triangulation(Xw, out_e_check, los3d);
         if (out_e_check > _obj_cfg._sm_param.tol_3d_mm) return false;
         if (!(_obj_cfg._sm_param.limit.check(Xw[0], Xw[1], Xw[2]))) return false; // if out of bounds
+        // out_e_check = triangulationVariance(los3d);
         return true;
     }
 
@@ -596,6 +604,7 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
 
         const auto& ids = match_candidates[j];
         for (int c = 0; c < n_cams; ++c) {
+            if (!_cams[c]._is_active) continue;
             const int pid = (c < (int)ids.size()) ? ids[c] : -1;
             if (pid < 0) continue;
 
@@ -629,12 +638,12 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
     std::vector<double> pct_sum(M, 0.0);
     std::vector<int>    pct_count(M, 0);
 
-    for (size_t f = 0; f < total_points; ++f) {
-        const auto& idxs = point_to_candidates[f];
+    for (size_t f = 0; f < total_points; ++f) { // loop over all 2D points on all cameras
+        const auto& idxs = point_to_candidates[f]; // match candidates using this 2D point
         if (idxs.empty()) continue;
 
         // Pool only candidates whose E_check is finite
-        std::vector<std::pair<double,int>> pool;
+        std::vector<std::pair<double,int>> pool; // pool saves all errors with corresponding match candidate index
         pool.reserve(idxs.size());
         for (int j : idxs) {
             const double e = e_checks[(size_t)j];
@@ -661,18 +670,21 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
 
         // Assign average rank to equal-error blocks, then normalize to [0,1]
         int k = 0;
+        // for every match candidate in this pool, calculate its percentile score and add to pct_sum
         while (k < n) {
             int k0 = k, k1 = k + 1;
+            // if there are equal errors, find the end of this block, and assign them the average rank
             while (k1 < n && eq_eps(pool[k1].first, pool[k0].first)) ++k1;
 
             const double avg_rank = 0.5 * (double)(k0 + (k1 - 1)); // average of integer ranks
             const double denom    = (double)(n - 1);
             const double pct      = (denom > 0.0) ? (avg_rank / denom) : 0.0;
 
+            // for each match candidate in this block, add its percentile score to pct_sum
             for (int t = k0; t < k1; ++t) {
-                const int j = pool[(size_t)t].second;
-                pct_sum[(size_t)j]   += pct;
-                pct_count[(size_t)j] += 1;
+                const int j = pool[(size_t)t].second; // the index of this match candidate
+                pct_sum[(size_t)j]   += pct;  //add its percentile score to pct_sum
+                pct_count[(size_t)j] += 1;    //count how many 2D points this match candidate uses
             }
             k = k1;
         }
@@ -681,7 +693,7 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
     std::vector<double> pct_score(M, std::numeric_limits<double>::infinity());
     for (size_t j = 0; j < M; ++j) {
         if (pct_count[j] > 0) {
-            pct_score[j] = pct_sum[j] / (double)pct_count[j];
+            pct_score[j] = pct_sum[j] / (double)pct_count[j]; // mean percentile score across all cameras used
         }
         // else: stays +inf → will be sorted to the end / ignored
     }
@@ -900,6 +912,64 @@ bool StereoMatch::TriangulationCheckWithTol(const std::vector<Line3D>& los3d,
     try { myMATH::triangulation(pt, err, los3d); }
     catch (...) { return false; }
     return err <= tol_3d_mm;
+}
+
+// compute variance of triangulation from pair-wise LOS
+double StereoMatch::triangulationVariance(const std::vector<Line3D>& los) const{
+    const size_t n = los.size();
+    if (n < 2) return std::numeric_limits<double>::infinity();
+
+    std::vector<Pt3D> midpoints;
+    midpoints.reserve(n*(n-1)/2);
+
+    // helper: compute closest pair (P,Q) on each line between two 3D lines (A,u) and (B,v)
+    auto closest_pair = [](const Pt3D& A, const Pt3D& u,
+                           const Pt3D& B, const Pt3D& v,
+                           Pt3D& P, Pt3D& Q) {
+        const Pt3D w0 = A - B;
+        const double a = u * u;            // ~1
+        const double b = u * v;
+        const double c = v * v;            // ~1
+        const double d = u * w0;
+        const double e = v * w0;
+        const double denom = a*c - b*b;
+        double t = 0.0, s = 0.0;
+        if (denom > 1e-12) {
+            t = (b*e - c*d) / denom;
+            s = (a*e - b*d) / denom;
+        } else {
+            // 近平行：固定一侧
+            t = 0.0;
+            s = (c>0.0) ? (e/c) : 0.0;
+        }
+        P = A + u * t;
+        Q = B + v * s;
+    };
+
+    // compute all pair-wise midpoints
+    for (size_t i = 0; i < n; i++){
+        Pt3D Ai = los[i].pt;
+        Pt3D ui = los[i].unit_vector; ui = ui / ui.norm();
+        for (size_t j = i + 1; j < n; j++){
+            Pt3D Bj = los[j].pt;
+            Pt3D vj = los[j].unit_vector; vj = vj / vj.norm();
+            Pt3D P,Q;
+            closest_pair(Ai,ui,Bj,vj,P,Q);
+            midpoints.push_back( (P+Q)*0.5 );
+        }
+    }
+
+    // compute variance of midpoints
+    Pt3D ctr(0,0,0);
+    for (auto& m: midpoints) ctr += m;
+    ctr = ctr * (1.0 / double(midpoints.size()));
+
+    double acc = 0.0;
+    for (auto& m: midpoints){
+        Pt3D dv = m - ctr;
+        acc += dv * dv;
+    }
+    return acc / double(midpoints.size()); 
 }
 
 bool StereoMatch::checkBackProjection(int          target_cam,

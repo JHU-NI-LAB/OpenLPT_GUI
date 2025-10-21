@@ -75,7 +75,9 @@ Users who want to install the pure cpp version can refer to the file [README_CPP
 - Issue Tracker: 
 - Source Code: [OpenLPT 2.0](https://github.com/clockj/OpenLPT.git)
 - We are happy that you enjoy our code. At the same time, we would like you give us the credits by citing the following reference in your work:
+
     - Tan, S., Salibindla, A., Masuk, A.U.M. and Ni, R., 2020. Introducing OpenLPT: new method of removing ghost particles and high-concentration particle shadow tracking. Experiments in Fluids, 61(2), p.47.
+    
     - Tan, S., Zhong, S. and Ni, R., 2023. 3D Lagrangian tracking of polydispersed bubbles at high image densities. Experiments in Fluids, 64(4), p.85.
 
 ## Support

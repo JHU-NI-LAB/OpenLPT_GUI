@@ -573,7 +573,7 @@ Matrix<T>& Matrix<T>::operator*= (Matrix<T> const& mtx)
 
 
 template<class T>
-Matrix<T> Matrix<T>::operator+ (T delta)
+Matrix<T> Matrix<T>::operator+ (T delta) const
 {
     Matrix<T> res(*this);
     for (int i = 0; i < _n; i ++)
@@ -594,7 +594,7 @@ Matrix<T>& Matrix<T>::operator+= (T delta)
 }
 
 template<class T>
-Matrix<T> Matrix<T>::operator- (T delta)
+Matrix<T> Matrix<T>::operator- (T delta) const
 {
     Matrix<T> res(*this);
     for (int i = 0; i < _n; i ++)
@@ -615,7 +615,7 @@ Matrix<T>& Matrix<T>::operator-= (T delta)
 }
 
 template<class T> 
-Matrix<T> Matrix<T>::operator* (T ratio)
+Matrix<T> Matrix<T>::operator* (T ratio) const
 {
     Matrix<T> res(*this);
     for (int i = 0; i < _n; i ++)
@@ -636,7 +636,7 @@ Matrix<T>& Matrix<T>::operator*= (T ratio)
 }
 
 template<class T> 
-Matrix<T> Matrix<T>::operator/ (T ratio)
+Matrix<T> Matrix<T>::operator/ (T ratio) const
 {
     Matrix<T> res(*this);
     for (int i = 0; i < _n; i ++)

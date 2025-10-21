@@ -103,13 +103,13 @@ public:
     Matrix<T>& operator-= (Matrix<T> const& mtx);
     Matrix<T>  operator*  (Matrix<T> const& mtx) const;
     Matrix<T>& operator*= (Matrix<T> const& mtx);
-    Matrix<T>  operator+  (T delta);
+    Matrix<T>  operator+  (T delta) const;
     Matrix<T>& operator+= (T delta);
-    Matrix<T>  operator-  (T delta);
+    Matrix<T>  operator-  (T delta) const;
     Matrix<T>& operator-= (T delta);
-    Matrix<T>  operator*  (T ratio);
+    Matrix<T>  operator*  (T ratio) const;
     Matrix<T>& operator*= (T ratio);
-    Matrix<T>  operator/  (T ratio);
+    Matrix<T>  operator/  (T ratio) const;
     Matrix<T>& operator/= (T ratio);
 
     // Matrix manipulation
@@ -125,6 +125,14 @@ public:
     Pt3D (double x, double y, double z) : Matrix<double>({{x},{y},{z}}) {};
     Pt3D (const Pt3D& pt) : Matrix<double>(pt) {};
     Pt3D (const Matrix<double>& mtx) : Matrix<double>({{mtx[0]},{mtx[1]},{mtx[2]}}) {};
+    double operator*(Pt3D pt) const {
+        return this->at(0,0) * pt[0] + this->at(1,0) * pt[1] + this->at(2,0) * pt[2];
+    }
+    Pt3D operator*(double scalar) const {
+        return Pt3D(this->at(0,0) * scalar,
+                    this->at(1,0) * scalar,
+                    this->at(2,0) * scalar);
+    }
     explicit Pt3D (std::string file_name) : Matrix<double>(file_name) {};
     explicit Pt3D (std::istream& is) : Matrix<double>(3,1,is) {};
 };
