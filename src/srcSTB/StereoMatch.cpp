@@ -576,6 +576,12 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
         return std::fabs(a - b) <= (s * rtol + atol);
     };
 
+    // [ADDED] Parameters for local replacement thresholds:
+    // If a conflict happens, we allow replacing the already-placed set S
+    // when the new candidate is clearly better (in pct_score or, if tied, in e_check).
+    const double swap_pct_margin = 1e-12; // new.pct must be at least this much smaller than avg(S).pct (beyond eq_eps)
+    const double swap_err_margin = 1e-12; // if pct ties, new.e must be smaller than avg(S).e by this
+
     // -------------------------------------------------------------------------
     // Step 0) Build per-camera prefix sums to flatten (cam, pid) -> flat index.
     // flat index f ∈ [0, total_points)
@@ -737,6 +743,23 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
     std::vector<int> owner(total_points, -1);
     std::vector<int> chosen; chosen.reserve(M / 10 + 8);
 
+    // [ADDED] We keep a selected-flag to know which candidates are currently placed.
+    std::vector<char> selected(M, 0);
+
+    // [ADDED] Small lambdas to place / clear a candidate's ownership.
+    auto place = [&](int cand){
+        for (size_t f : flats_per_candidate[(size_t)cand]) owner[f] = cand;
+        selected[(size_t)cand] = 1;
+        chosen.push_back(cand);
+    };
+    auto clear_owner_of = [&](int cand){
+        for (size_t f : flats_per_candidate[(size_t)cand]) {
+            if (owner[f] == cand) owner[f] = -1;
+        }
+        selected[(size_t)cand] = 0;
+        // note: we DO NOT remove it from 'chosen' to keep O(1). We'll rebuild output from 'selected' later.
+    };
+
     for (int j : order) {
         // Skip those with undefined pct_score or E_check
         if (!std::isfinite(pct_score[(size_t)j])) continue;
@@ -749,11 +772,59 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
         for (size_t f : flats) {
             if (owner[f] != -1) { conflict = true; break; }
         }
-        if (conflict) continue;
+        if (!conflict) {
+            // place
+            place(j);
+            continue;
+        }
 
-        // place
-        for (size_t f : flats) owner[f] = j;
-        chosen.push_back(j);
+        // [ADDED] Local replacement path:
+        // Collect the unique set S of already-placed candidates that conflict with j.
+        std::vector<int> S; S.reserve(flats.size());
+        for (size_t f : flats) {
+            int o = owner[f];
+            if (o == -1) continue;
+            bool seen = false;
+            for (int v : S) if (v == o) { seen = true; break; }
+            if (!seen) S.push_back(o);
+        }
+        if (S.empty()) {
+            // theoretically unreachable since we detected conflict, but keep safe guard
+            place(j);
+            continue;
+        }
+
+        // [ADDED] Compute average pct_score and average e_check over S.
+        double avg_pct = 0.0, avg_err = 0.0;
+        int    cnt     = 0;
+        for (int o : S) {
+            const double po = pct_score[(size_t)o];
+            const double eo = e_checks [(size_t)o];
+            if (!std::isfinite(po) || !std::isfinite(eo)) continue;
+            avg_pct += po; avg_err += eo; ++cnt;
+        }
+        if (cnt == 0) {
+            // If S has no finite metrics, be conservative and skip replacement.
+            continue;
+        }
+        avg_pct /= (double)cnt;
+        avg_err /= (double)cnt;
+
+        const double pj = pct_score[(size_t)j];
+        const double ej = e_checks [(size_t)j];
+
+        // [ADDED] Replacement criterion:
+        //  - strictly better pct_score beyond eps, or
+        //  - pct_score ties (within eps) but strictly better e_check beyond eps.
+        const bool better_pct = (!eq_eps(pj, avg_pct)) && ((pj + swap_pct_margin) < avg_pct);
+        const bool tie_pct_better_err = eq_eps(pj, avg_pct) && (!eq_eps(ej, avg_err)) && ((ej + swap_err_margin) < avg_err);
+
+        if (better_pct || tie_pct_better_err) {
+            // [ADDED] Replace: clear all owners in S, then place j.
+            for (int o : S) clear_owner_of(o);
+            place(j);
+        }
+        // else: keep the current placement; skip j
     }
 
     // -------------------------------------------------------------------------
@@ -761,9 +832,12 @@ StereoMatch::pruneMatch(const std::vector<std::vector<int>>& match_candidates,
     // -------------------------------------------------------------------------
     std::vector<std::vector<int>> out;
     out.reserve(chosen.size());
-    for (int j : chosen) out.push_back(match_candidates[(size_t)j]);
+    for (size_t j = 0; j < M; ++j) {
+        if (selected[j]) out.push_back(match_candidates[(size_t)j]);
+    }
     return out;
 }
+
 
 
 // Triangulate all selected matches, drop those with error > tol_3d,

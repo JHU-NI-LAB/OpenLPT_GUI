@@ -238,3 +238,5 @@ for i in range(frame_range[0], frame_range[1] + 1):
         )
         file = os.path.join(folder, f'cam{j+1}', f'img{i:05d}.tif')
         cv2.imwrite(file, img)
+
+# %%

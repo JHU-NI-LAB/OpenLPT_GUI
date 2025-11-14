@@ -251,11 +251,12 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
             std::cout << "]\n";
 
             double tol_2d_px_orig = cfg._sm_param.tol_2d_px;
-
+            
             for (int loop = 0; loop < loops; ++loop)
             {
                 // gradually increase 2D tolerance, final loop = tol_2d_px_orig + 1 px
-                cfg._sm_param.tol_2d_px = tol_2d_px_orig + 1.0 / loops * loop; // 1.0 is used for "double" calculation
+                // cfg._sm_param.tol_2d_px = tol_2d_px_orig + 1.0 / loops * loop; // 1.0 is used for "double" calculation
+                
 
                 auto objs = runSingleIPRIteration(_cam_list, images, cfg); // images will be updated for every loop.
 
@@ -271,6 +272,8 @@ IPR::runIPR(ObjectConfig& cfg, std::vector<Image> images)
                 }
                 std::cout << "\tLOOP=" << loop
                           << ": TOTAL OBJECTS = " << all_objs.size() << "\n";
+
+                cfg._sm_param.tol_2d_px = cfg._sm_param.tol_2d_px * 1.5; // increase by 50% each loop
             }
             cfg._sm_param.tol_2d_px = tol_2d_px_orig; // reset back
         }

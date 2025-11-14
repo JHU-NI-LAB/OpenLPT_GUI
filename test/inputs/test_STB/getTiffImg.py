@@ -17,8 +17,8 @@ def getTiffImg(pt3d_list, rotVec, transVec, camMat, distCoeff, imgNRowNCol):
     # gaussian intensity distribution parameter
     alpha = 0
     a = 125
-    b = 1.5
-    c = 1.5
+    b = 0.65
+    c = 0.65
     min_intensity = 0
     max_intensity = 255
     dtype = np.uint8
