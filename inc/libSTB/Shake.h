@@ -62,7 +62,7 @@ private:
     double shakeOneObject(Object3D& obj, std::vector<ROIInfo>& ROI_info, double delta, const std::vector<bool>& shake_cam) const;
 
     // calculate the score of object based on intensity
-    double calObjectScore(Object3D& obj, const std::vector<ROIInfo>& ROI_info) const;
+    double calObjectScore(Object3D& obj, std::vector<ROIInfo>& ROI_info, const std::vector<bool>& shake_cam) const;
 
     // mark repeated objects
     std::vector<bool> markRepeatedObj(const std::vector<std::unique_ptr<Object3D>>& objs);
@@ -126,6 +126,10 @@ public:
     virtual std::vector<bool> selectShakeCam(const Object3D& obj, const std::vector<ROIInfo>& roi_info, const std::vector<Image>& imgOrig) const 
     {return std::vector<bool>(_cams.size(), true);};
 
+    // additional check for object after shaking, for example, bubble needs to check the image correlation
+    virtual bool additionalObjectCheck(const Object3D& obj, std::vector<ROIInfo>& roi_info, const std::vector<bool>& shakecam) const
+    {return true;};
+
 };
 
 class TracerShakeStrategy : public ShakeStrategy {
@@ -157,6 +161,7 @@ public:
 
     double calShakeResidue(const Object3D& obj_candidate, std::vector<ROIInfo>& roi_info, const std::vector<bool>& shake_cam) const override;
 
+    bool additionalObjectCheck(const Object3D& obj, std::vector<ROIInfo>& roi_info, const std::vector<bool>& shake_cam) const override;
 };
 
 #endif // !SHAKE_H

@@ -129,6 +129,7 @@ ObjectFinder2D::findBubble2D(Image const& img, BubbleConfig const& cfg)
 {
     const int W = img.getDimCol();
     const int H = img.getDimRow();
+    const double metric_thres = 0.3;
 
     // ---------- Step 0. Sanity checks ----------
     if (cfg._radius_min > cfg._radius_max || W <= 0 || H <= 0) {
@@ -158,11 +159,13 @@ ObjectFinder2D::findBubble2D(Image const& img, BubbleConfig const& cfg)
         std::vector<double> radius;
         std::vector<double> metric;
 
-        circle_id.BubbleCenterAndSizeByCircle(center, radius, rmin, rmax, sense);
+        metric = circle_id.BubbleCenterAndSizeByCircle(center, radius, rmin, rmax, sense);
 
         std::vector<std::unique_ptr<Object2D>> out;
         out.reserve(center.size());
         for (size_t i = 0; i < center.size(); ++i) {
+            if (metric[i] < metric_thres) continue;
+
             out.emplace_back(std::make_unique<Bubble2D>(center[i], radius[i]));
         }
         out.shrink_to_fit();
@@ -307,6 +310,9 @@ ObjectFinder2D::findBubble2D(Image const& img, BubbleConfig const& cfg)
     std::vector<std::unique_ptr<Object2D>> out;
     out.reserve(deduped.size());
     for (auto& d : deduped) {
+        // ---- Metric filter: remove bubbles with low confidence ----
+        if (d.metric < metric_thres) continue;
+
         out.emplace_back(std::make_unique<Bubble2D>(d.c, d.r));
     }
     out.shrink_to_fit();

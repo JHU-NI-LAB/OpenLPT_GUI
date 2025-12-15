@@ -39,8 +39,8 @@ struct DebugAccess_Shake {
     static double shakeOneObject(const Shake& s, Object3D& obj, std::vector<ROIInfo>& roi, double delta, const std::vector<bool>& shake_cam)
     { return s.shakeOneObject(obj, roi, delta, shake_cam); }
 
-    static double calObjectScore(Shake& s, Object3D& obj, const std::vector<ROIInfo>& roi)
-    { return s.calObjectScore(obj, roi); }
+    static double calObjectScore(Shake& s, Object3D& obj, std::vector<ROIInfo>& roi, const std::vector<bool>& shake_cam)
+    { return s.calObjectScore(obj, roi, shake_cam); }
 
     static std::vector<bool> markRepeatedObj(Shake& s, const std::vector<std::unique_ptr<Object3D>>& objs)
     { return s.markRepeatedObj(objs); }
@@ -245,9 +245,9 @@ void bind_Shake(py::module_& m) {
                 return py::make_tuple(residue, std::move(obj_shaked));
             }, py::arg("obj"), py::arg("roi_info"), py::arg("delta"), py::arg("shake_cam"))
 
-        .def("calObjectScore", [](Shake& s, Object3D& obj, const std::vector<ROIInfo>& roi) {
-                return DebugAccess_Shake::calObjectScore(s, obj, roi);
-            }, py::arg("obj"), py::arg("roi_info"))
+        .def("calObjectScore", [](Shake& s, Object3D& obj, std::vector<ROIInfo>& roi, const std::vector<bool>& shake_cam) {
+                return DebugAccess_Shake::calObjectScore(s, obj, roi, shake_cam);
+            }, py::arg("obj"), py::arg("roi_info"), py::arg("shake_cam"))
 
         // 私有 markRepeatedObj：同理用 utils 转换
         .def("markRepeatedObj", [](Shake& s, const std::vector<Object3D*>& objs_py) {

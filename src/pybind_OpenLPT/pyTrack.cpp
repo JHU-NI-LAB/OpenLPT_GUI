@@ -11,6 +11,28 @@ void bind_Track(py::module_& m) {
     py::class_<Track>(m, "Track")
         .def(py::init<>())
 
+        // 只读访问 _obj3d_list：返回 Python list[Object3D]，元素是 C++ 内部 const Object3D* 引用
+        .def_property_readonly("_obj3d_list",
+            [](Track &self) {
+                py::list out;
+                auto parent = py::cast(&self);  // 作为 reference_internal 的父对象
+                for (auto &uptr : self._obj3d_list) {
+                    const Object3D *p = uptr.get();
+                    if (p) {
+                        out.append(py::cast(p,
+                            py::return_value_policy::reference_internal,
+                            parent));
+                    } else {
+                        out.append(py::none());
+                    }
+                }
+                return out;
+            })
+
+        // 这两个是普通 STL / 基本类型，可以直接 def_readwrite 暴露
+        .def_readwrite("_t_list", &Track::_t_list)
+        .def_readwrite("_active", &Track::_active)
+
         // 仅绑定公开方法；不要暴露/触碰私有成员
         .def("save_track", &Track::saveTrack, py::arg("ostream"), py::arg("track_id"))
         .def("load_track", &Track::loadTrack, py::arg("ifstream"), py::arg("cfg"), py::arg("cams"))

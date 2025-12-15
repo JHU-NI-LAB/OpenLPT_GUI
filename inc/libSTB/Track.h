@@ -15,7 +15,6 @@
 #include "Matrix.h"
 #include "ObjectInfo.h"
 
-// Predictor param
 
 class Track
 {

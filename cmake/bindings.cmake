@@ -30,6 +30,7 @@ set(PY_SOURCES
   "${OPENLPT_PY_DIR}/pymyMath.cpp"
   "${OPENLPT_PY_DIR}/pySTB.cpp"
   "${OPENLPT_PY_DIR}/pySTBCommons.cpp"
+  "${OPENLPT_PY_DIR}/pyCircleIdentifier.cpp"
 )
 
 # Python module name (import name)

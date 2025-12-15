@@ -59,7 +59,7 @@ void STB::processFrame(int frame_id, std::vector<Image>& img_list)
     std::cout << "Total time for frame " << frame_id << ": " << (double) (t_end - t_start)/CLOCKS_PER_SEC << std::endl;
     std::cout << std::endl;
 
-    if (frame_id == _basic_setting._frame_end)
+    if (frame_id == _basic_setting._frame_end && frame_id % 500 != 0) // save at the end if not already saved
     {
         std::cout << "Finish STB!" << std::endl;
         std::cout << "Frame start: " << _basic_setting._frame_start << "; Frame end: " << _basic_setting._frame_end << std::endl;
@@ -638,10 +638,16 @@ std::vector<ObjFlag> STB::checkRepeat(const std::vector<std::unique_ptr<Object3D
     {
         const Pt3D& p = objs[i]->_pt_center;
 
+        // for bubbles, tol needs to be added with radius
+        double r_obj = 0.0;
+        if (const auto* bubble = dynamic_cast<const Bubble3D*>(objs[i].get())) {
+            r_obj = bubble->_r3d;
+        }
+
         for (const Pt3D& q : last_centers) {
             Pt3D d = p - q;
             double dist = d.norm();
-            if (dist <= tol) { flags[i] = ObjFlag::Repeated; break; }
+            if (dist <= tol + r_obj) { flags[i] = ObjFlag::Repeated; break; }
         }
     }
 

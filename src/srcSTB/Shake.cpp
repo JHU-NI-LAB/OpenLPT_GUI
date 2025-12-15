@@ -79,9 +79,15 @@ Shake::runShake(std::vector<std::unique_ptr<Object3D>>& objs,
             //     active && ROI non-empty && selected by strategy->selectShakeCam(...).
             // first, we need to determine which camera is used for shaking
             std::vector<bool> shake_cam = _strategy->selectShakeCam(*objs[i], roi, img_orig);
+            int shake_cam_count = std::count(shake_cam.begin(), shake_cam.end(), true);
+            if (shake_cam_count < 2) {
+                _score_list[i] = 0.0;
+                continue;
+            } // need at least 2 cameras to shake
+
             (void) shakeOneObject(*objs[i], roi, delta, shake_cam);
             // 2.3 Compute object score (cross-camera aggregation inside your calObjectScore).
-            double score = calObjectScore(*objs[i], roi);
+            double score = calObjectScore(*objs[i], roi, shake_cam);
             _score_list[i] *= score;
         }
         // 4) Δ schedule (halve each loop; clamp to delta_min)
@@ -108,7 +114,7 @@ Shake::runShake(std::vector<std::unique_ptr<Object3D>>& objs,
 
     for (size_t i = 0; i < n_obj; ++i) {
         if (!objs[i]) continue;
-        if (_score_list[i] < mean_score * percent_ghost) {
+        if (_score_list[i] < mean_score * percent_ghost || _score_list[i] == 0.0) {
             flags[i] |= ObjFlag::Ghost;
         }
     }
@@ -588,8 +594,12 @@ double Shake::shakeOneObject(Object3D& obj,
 
 
 // calculate score based on the intensity
-double Shake::calObjectScore(Object3D& obj, const std::vector<ROIInfo>& ROI_info) const
+double Shake::calObjectScore(Object3D& obj, std::vector<ROIInfo>& ROI_info, const std::vector<bool>& shake_cam) const
 {
+    // check whether object is present in all selected cameras
+    if (!_strategy->additionalObjectCheck(obj, ROI_info, shake_cam)) {
+        return 0.0;
+    }
     const int n_cam = static_cast<int>(_cams.size());
     constexpr double kTiny = 1e-12;   // avoid 0
     constexpr double kDown = kTiny;     // if camera number is less than 2, return this
@@ -943,7 +953,7 @@ double BubbleShakeStrategy::project2DInt(const Object3D& obj, int id_cam, int ro
     Object2D* obj2d = obj._obj2d_list[id_cam].get();
     auto* bb2d = static_cast<Bubble2D*>(obj2d);
     double xc = bb2d->_pt_center[0], yc = bb2d->_pt_center[1];
-    double r_px = bb2d->_r_px;
+    double r_px = bb2d->_r_px + 1; // +1 to include the edge pixels
 
     double dist = (xc - col) * (xc - col) + (yc - row) * (yc - row);
     double int_val = 0.0;
@@ -1034,7 +1044,7 @@ std::vector<bool> BubbleShakeStrategy::selectShakeCam(const Object3D& obj, const
         } else {
             // large-radius branch: detect directly on ROI subimage
             CircleIdentifier circle_id(imgOrig_sub);
-            rmin = 2.0;
+            rmin = std::max(2.0, r_px * 0.5);
             rmax = std::ceil(r_px) + 3.0;            // keep your original heuristic
             sense = 0.95;
             metrics = circle_id.BubbleCenterAndSizeByCircle(centers, radii, rmin, rmax, sense);
@@ -1165,4 +1175,58 @@ double BubbleShakeStrategy::calShakeResidue(const Object3D& obj_candidate, std::
     
     residue = cams_used > 1 ? residue/cams_used : 2; // must have at least 2 cameras to calculate the residue
     return residue;
+}
+
+// BubbleShakeStrategy.cpp
+bool BubbleShakeStrategy::additionalObjectCheck(
+    const Object3D& obj,
+    std::vector<ROIInfo>& roi_info,
+    const std::vector<bool>& shake_cam
+) const
+{
+    constexpr double CORR_TH = 0.1;
+
+    for (size_t cam = 0; cam < shake_cam.size(); ++cam) {
+        if (!_cams[cam]._is_active) continue;
+        if (!shake_cam[cam]) continue;
+
+        Object2D* obj2d = obj._obj2d_list[cam].get();
+        const auto* bb2d = static_cast<const Bubble2D*>(obj2d);
+        double xc = bb2d->_pt_center[0], yc = bb2d->_pt_center[1];
+        double r_px = bb2d->_r_px;
+        const PixelRange& range_corrmap = roi_info[cam]._ROI_range;
+
+        const int r_int = std::round(r_px); 
+        int npix = r_int * 2 + 1; // guarantee there is only a whole center pixel on ref_img
+        const auto& bb_cfg = static_cast<const BubbleConfig&>(_obj_cfg); // to get the bubble reference image
+        BubbleResize bb_resizer;
+        const Image ref_img = bb_resizer.ResizeBubble(bb_cfg._bb_ref_img[cam], npix, _cams[cam]._max_intensity);
+
+        // ====== 你原来 calShakeResidue 里那套插值 ======
+        int x_low  = static_cast<int>(std::floor(xc));
+        int y_low  = static_cast<int>(std::floor(yc));
+        int x_high = x_low + 1;
+        int y_high = y_low + 1;
+
+        // calculate cross-correlation
+        std::vector<double> corr_interp(4,0);
+        corr_interp[0] = getImgCorr(roi_info[cam], x_low, y_low, ref_img); 
+        corr_interp[1] = getImgCorr(roi_info[cam], x_high, y_low, ref_img); 
+        corr_interp[2] = getImgCorr(roi_info[cam], x_high, y_high, ref_img);
+        corr_interp[3] = getImgCorr(roi_info[cam], x_low, y_high, ref_img);
+
+        AxisLimit grid_limit(x_low, x_high, y_low, y_high, 0, 0);
+        std::vector<double> center = {xc, yc};
+
+        double corr = myMATH::bilinearInterp(
+            grid_limit, corr_interp, center
+        );
+
+        // ✅ 你的规则：任意一个 < 0.1 → false
+        if (corr < CORR_TH) {
+            return false;
+        }
+    }
+
+    return true;
 }
