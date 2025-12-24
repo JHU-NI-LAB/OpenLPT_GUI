@@ -427,6 +427,9 @@ class ResultsView(QWidget):
         def on_mouse_move(event):
             if event.inaxes != ax:
                 return
+            # Optimization: Skip coordinate update while dragging/rotating (button pressed)
+            if event.button is not None:
+                return
             try:
                 coord_str = ax.format_coord(event.xdata, event.ydata)
                 parts = re.findall(r"[-+]?\d*\.\d+|\d+", coord_str)
@@ -843,7 +846,8 @@ class ResultsView(QWidget):
             else:
                 # Ensure scatter exists
                 if not hasattr(self, 'sc_main') or self.sc_main is None:
-                    self.sc_main = ax.scatter([], [], [], s=1, alpha=0.6, linewidth=0)
+                    # OPTIMIZATION: depthshade=False improves performance by skipping depth-based alpha calc
+                    self.sc_main = ax.scatter([], [], [], s=1, alpha=0.6, linewidth=0, depthshade=False)
                 
                 # Update Scatter Data
                 self.sc_main._offsets3d = (all_x, all_y, all_z)

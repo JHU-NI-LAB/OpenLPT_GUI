@@ -35,8 +35,13 @@ Please see the sample format of configuration files, camera files and image file
 1. [CMake](https://cmake.org/)
 2. [Anaconda](https://www.anaconda.com/) or
 [Miniconda](https://docs.anaconda.com/miniconda/)
-3. (Windows users) [Visual Studio](https://visualstudio.microsoft.com/). **Note: install the c++ development tools**
-4. (Linux users) [gcc](https://gcc.gnu.org/).
+3. [Mamba](https://mamba.readthedocs.io/) (recommended for faster dependency resolution)
+   ```bash
+   # Install mamba in the base environment
+   conda install -n base -c conda-forge mamba
+   ```
+4. (Windows users) [Visual Studio](https://visualstudio.microsoft.com/). **Note: install the c++ development tools**
+5. (Linux users) [gcc](https://gcc.gnu.org/).
 
 
 ### Install OpenLPT
@@ -44,10 +49,12 @@ Please see the sample format of configuration files, camera files and image file
 Create a python environment and install dependencies 
 (for **Windows** users, it is suggested to use **Anaconda Prompt** finish the following steps).
 ```bash
-# use conda
+# use conda to create environment
 conda create -n OpenLPT python=3.9
 conda activate OpenLPT
-pip install -r requirements.txt
+
+# use mamba to install dependencies (faster than pip)
+mamba install -c conda-forge --file requirements.txt
 conda deactivate
 ```
 Download the source code from github and install it
@@ -67,6 +74,23 @@ redirector = lpt.PythonStreamRedirector()
 config_file = '${path_to_config_file}'
 lpt.run(config_file)
 ```
+
+## GUI Usage
+
+OpenLPT provides a graphical user interface for easier interaction with the tracking pipeline.
+
+### Launch the GUI
+```bash
+conda activate OpenLPT
+python gui/main.py
+```
+
+The GUI provides modules for:
+- **Camera Calibration**: Wand and plate calibration workflows
+- **Image Preprocessing**: Background subtraction and image enhancement
+- **Tracking Settings**: Configure tracking parameters
+- **Tracking**: Run the tracking algorithm with real-time visualization
+- **Results**: View and export tracking results
 
 ## Installation - CPP Version
 Users who want to install the pure cpp version can refer to the file [README_CPP.md](README_CPP.md)
