@@ -191,7 +191,7 @@ class OpenLPTMainWindow(QMainWindow):
             preprocessing_view=self.views["preprocessing"]
         )
         self.views["tracking"] = TrackingView(settings_view=self.views["settings"])
-        self.views["results"] = ResultsView()
+        self.views["results"] = ResultsView(settings_view=self.views["settings"])
         
         # Add to stack
         self.stack.addWidget(self.calib_view) # 0
@@ -219,6 +219,29 @@ class OpenLPTMainWindow(QMainWindow):
     def _on_nav_clicked(self, index: int):
         """Handle navigation selection change."""
         self.stack.setCurrentIndex(index)
+        
+        # Auto-fill Project Path in Results View from Tracking View
+        if index == 4: # Results View
+            try:
+                tracking_view = self.views.get("tracking")
+                results_view = self.views.get("results")
+                
+                if tracking_view and results_view:
+                    # Get path from Tracking View
+                    current_path = tracking_view.proj_path_edit.text().strip()
+                    
+                    if current_path:
+                        # Only update if Results View is empty or different? 
+                        # Better to update always to ensure sync, or check if empty.
+                        # User might have changed it manually in Results, but likely wants the active project.
+                        # Let's update only if Results is empty or user requests it? 
+                        # User request: "Auto read from tracking module".
+                        # So just overwrite or fill if empty.
+                        # Safer: Fill if empty OR if it matches the 'default' empty state.
+                        # Or just overwrite. User can change it back if needed.
+                        results_view.proj_path_edit.setText(current_path)
+            except Exception as e:
+                print(f"Error syncing project path: {e}")
     
     def _setup_toolbar(self):
         """Setup the top toolbar."""

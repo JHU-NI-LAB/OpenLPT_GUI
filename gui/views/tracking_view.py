@@ -58,6 +58,23 @@ class ZoomableLabel(QLabel):
             self.last_mouse_pos = None
 
     def mouseDoubleClickEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.resetView.emit()
+
+class NumericTableWidgetItem(QTableWidgetItem):
+    """
+    A QTableWidgetItem that sorts numerically.
+    Overrides __lt__ to compare values as floats/ints.
+    """
+    def __lt__(self, other):
+        # Try converting both to float for comparison
+        try:
+            val1 = float(self.text())
+            val2 = float(other.text())
+            return val1 < val2
+        except ValueError:
+            # Fallback to string comparison
+            return super().__lt__(other)
         self.resetView.emit()
 import re
 import csv
@@ -1027,25 +1044,51 @@ class TrackingView(QWidget):
         QMessageBox.critical(self, "Loading Error", f"Failed to load track data:\n{error_msg}")
 
     def _discover_cameras(self):
-        """Discover available cameras from imgFile directory and create checkboxes."""
+        """Discover available cameras from config.txt and create checkboxes."""
         proj_path = self.proj_path_edit.text()
-        if not proj_path:
+        
+        # 1. Try to load from config.txt first (User Preference)
+        config_path = os.path.join(proj_path, "config.txt") if proj_path else None
+        image_name_files = []
+        
+        if config_path and os.path.exists(config_path):
+            try:
+                with open(config_path, 'r') as f:
+                    lines = f.readlines()
+                    is_img_section = False
+                    for line in lines:
+                        line = line.strip()
+                        if not line: continue
+                        
+                        if line.startswith("# Image File Path"):
+                            is_img_section = True
+                            continue
+                        
+                        if is_img_section:
+                            if line.startswith("#"): # Next section
+                                break
+                            if not line.startswith("!"): # Valid path
+                                # Handle potential relative paths (though usually absolute)
+                                if not os.path.isabs(line) and proj_path:
+                                    line = os.path.normpath(os.path.join(proj_path, line))
+                                image_name_files.append(line)
+            except Exception as e:
+                print(f"Error parsing config.txt: {e}")
+        
+        # 2. Fallback to folder scan if config failed or found nothing
+        if not image_name_files and proj_path:
+            img_file_path = os.path.join(proj_path, "imgFile")
+            if os.path.exists(img_file_path):
+                 cam_dirs = sorted([d for d in os.listdir(img_file_path) if d.startswith("cam") and os.path.isdir(os.path.join(img_file_path, d))])
+                 # Construct mock paths for consistency
+                 for d in cam_dirs:
+                     image_name_files.append(os.path.join(img_file_path, f"{d}ImageNames.txt"))
+        
+        self.num_cameras = len(image_name_files)
+        if self.num_cameras == 0:
             return
-        
-        img_file_path = os.path.join(proj_path, "imgFile")
-        if not os.path.exists(img_file_path):
-            return
-        
-        # Find cam directories (cam0, cam1, cam2, ... or cam1, cam2, ...)
-        cam_dirs = []
-        for d in sorted(os.listdir(img_file_path)):
-            full_path = os.path.join(img_file_path, d)
-            if os.path.isdir(full_path) and d.startswith("cam"):
-                cam_dirs.append(d)
-        
-        self.num_cameras = len(cam_dirs)
-        
-        # Clear existing checkboxes
+
+        # Clear existing checks first
         for cb in self.cam_checkboxes:
             cb.deleteLater()
         self.cam_checkboxes.clear()
@@ -1056,48 +1099,52 @@ class TrackingView(QWidget):
             if item.widget():
                 item.widget().deleteLater()
         
-        # Build image path lists from camXImageNames.txt
         self.cam_image_paths.clear()
+        self.cam_name_to_idx = {}
         
-        for cam_dir in cam_dirs:
-            # Try to find corresponding ImageNames.txt
-            # e.g. cam1 -> cam1ImageNames.txt
-            txt_name = f"{cam_dir}ImageNames.txt"
-            txt_path = os.path.join(img_file_path, txt_name)
+        # Create UI and Load Paths
+        insert_pos = 1
+        for i, txt_path in enumerate(image_name_files):
+            # Checkbox label: "Cam 0", "Cam 1"...
+            friendly_name = f"Cam {i}"
+            # Key must match cb.text().lower() for lookup in _update_2d_view_frame
+            # "Cam 0" -> "cam 0"
+            cam_key = friendly_name.lower()
             
+            self.cam_image_paths[cam_key] = []
+            
+            # 3. Load actual image paths
             if os.path.exists(txt_path):
                 try:
                     with open(txt_path, 'r') as f:
-                        lines = [line.strip() for line in f if line.strip()]
-                        # Resolve paths (assuming they are relative to project root or absolute)
-                        # The user example showed "./test/...", so os.path.abspath handles it if CWD is correct.
-                        # Otherwise might need to join with project root if they are relative to it?
-                        # For now, trust os.path.abspath relative to current working dir.
-                        self.cam_image_paths[cam_dir] = [os.path.abspath(l) for l in lines]
+                        # Read all lines, filtering empty ones
+                        img_lines = [l.strip() for l in f if l.strip()]
+                        # Resolve absolute paths just to be safe
+                        self.cam_image_paths[cam_key] = [os.path.normpath(l) for l in img_lines]
                 except Exception as e:
-                    print(f"Error reading {txt_name}: {e}")
-                    self.cam_image_paths[cam_dir] = []
-            
-            # Fallback: Scan directory if list is empty
-            if not self.cam_image_paths.get(cam_dir):
-                cam_path = os.path.join(img_file_path, cam_dir)
-                imgs = sorted([f for f in os.listdir(cam_path) if f.endswith(('.tif', '.tiff', '.png', '.jpg'))])
-                self.cam_image_paths[cam_dir] = [os.path.join(cam_path, img) for img in imgs]
-        
-        # Create checkboxes for cameras
-        # Map directory names to logical indices (0-based) for data retrieval
-        self.cam_name_to_idx = {}
-        
-        insert_pos = 1  # After first stretch
-        for i, cam_dir in enumerate(cam_dirs):
-            self.cam_name_to_idx[cam_dir] = i
-            
-            cb = QCheckBox(cam_dir.capitalize())
+                    print(f"Error loading images list {txt_path}: {e}")
+            else:
+                # If TXT file missing, check if it was a fallback directory path (from folder scan)
+                parent = os.path.dirname(txt_path)
+                basename = os.path.basename(txt_path)
+                # Try to extract "camX" from "camXImageNames.txt"
+                if "ImageNames.txt" in basename:
+                    folder_name = basename.replace("ImageNames.txt", "")
+                    folder_path = os.path.join(parent, folder_name)
+                    if os.path.isdir(folder_path):
+                        # Scan folder
+                         imgs = sorted([f for f in os.listdir(folder_path) if f.lower().endswith(('.tif', '.png', '.jpg'))])
+                         self.cam_image_paths[cam_key] = [os.path.join(folder_path, img) for img in imgs]
+
+            # Create Checkbox
+            self.cam_name_to_idx[cam_key] = i
+            cb = QCheckBox(friendly_name)
             cb.setStyleSheet("color: #aaa; margin: 0 10px;")
             cb.stateChanged.connect(self._on_cam_checkbox_changed)
             self.cam_checkboxes.append(cb)
             self.cam_select_layout.insertWidget(insert_pos, cb)
             insert_pos += 1
+
         
         # Auto-select first 4 cameras
         for i, cb in enumerate(self.cam_checkboxes[:4]):
@@ -1276,13 +1323,11 @@ class TrackingView(QWidget):
             self.track_table.setItem(row, 0, chk_item)
             
             # ID item
-            id_item = QTableWidgetItem(str(tid))
-            id_item.setData(Qt.ItemDataRole.DisplayRole, tid) # For proper sorting
+            id_item = NumericTableWidgetItem(str(tid))
             self.track_table.setItem(row, 1, id_item)
             
             # Length item
-            len_item = QTableWidgetItem(str(length))
-            len_item.setData(Qt.ItemDataRole.DisplayRole, length) # For proper sorting
+            len_item = NumericTableWidgetItem(str(length))
             self.track_table.setItem(row, 2, len_item)
             
         self.track_table.setSortingEnabled(True)

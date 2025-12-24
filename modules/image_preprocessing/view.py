@@ -624,7 +624,7 @@ class ImagePreprocessingView(QWidget):
         
         # Create new buttons
         for i in range(num_cams):
-            btn = QPushButton(f"Cam {i + 1}")
+            btn = QPushButton(f"Cam {i}")
             btn.setCheckable(True)
             btn.setChecked(i == self.current_cam)
             btn.setStyleSheet("""
@@ -897,7 +897,7 @@ class ImagePreprocessingView(QWidget):
         
         for cam_idx in self.camera_images:
             progress.setValue(cam_idx)
-            progress.setLabelText(f"Calculating background for Camera {cam_idx + 1}...")
+            progress.setLabelText(f"Calculating background for Camera {cam_idx}...")
             QApplication.processEvents()
             
             images = self.camera_images[cam_idx]
@@ -1054,7 +1054,7 @@ class ImagePreprocessingView(QWidget):
         cam_files_map = {} 
         
         for cam_idx, file_list in self.camera_images.items():
-            cam_dir_name = f"cam{cam_idx + 1}"
+            cam_dir_name = f"cam{cam_idx}"
             cam_out_dir = os.path.join(img_file_dir, cam_dir_name)
             if not os.path.exists(cam_out_dir):
                 os.makedirs(cam_out_dir)
