@@ -46,21 +46,25 @@ Please see the sample format of configuration files, camera files and image file
 
 ### Install OpenLPT
 
+Download the source code from github
+```bash
+git clone https://github.com/Sinchy/pyOpenLPT.git
+```
+
 Create a python environment and install dependencies 
 (for **Windows** users, it is suggested to use **Anaconda Prompt** finish the following steps).
 ```bash
-# use conda to create environment
-conda create -n OpenLPT python=3.9
+conda create -n OpenLPT python=3.11
 conda activate OpenLPT
 
 # use mamba to install dependencies (faster than pip)
 mamba install -c conda-forge --file requirements.txt
 conda deactivate
 ```
-Download the source code from github and install it
+
+Install the package
 ```bash
-git clone https://github.com/clockj/OpenLPT.git
-cd OpenLPT
+cd pyOpenLPT
 conda activate OpenLPT
 pip install .
 conda deactivate
