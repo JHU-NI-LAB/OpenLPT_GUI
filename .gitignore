@@ -12,6 +12,7 @@
 /OpenLPT/
 /bin/
 /test/inputs/test_STB/*.mat
+/test/inputs/test_PIVChallenge/
 /test/results/*
 pyOpenLPT.egg-info/
 pyOpenLPT/*
