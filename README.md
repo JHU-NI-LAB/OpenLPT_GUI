@@ -57,6 +57,7 @@ Create a python environment and install dependencies
 conda create -n OpenLPT python=3.11
 conda activate OpenLPT
 
+cd pyOpenLPT
 # use mamba to install dependencies (faster than pip)
 mamba install -c conda-forge --file requirements.txt
 conda deactivate
@@ -64,7 +65,6 @@ conda deactivate
 
 Install the package
 ```bash
-cd pyOpenLPT
 conda activate OpenLPT
 pip install .
 conda deactivate
