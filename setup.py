@@ -39,8 +39,7 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Windows":
             cmake_args += [f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"]
-            if "CMAKE_GENERATOR" not in os.environ:
-                cmake_args += ["-G", "Visual Studio 17 2022", "-A", "x64"]
+            # Let CMake auto-detect the Visual Studio version
             build_args += ["--", "/m"]
         else:
             cmake_args += [f"-DCMAKE_BUILD_TYPE={cfg}", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"]

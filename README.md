@@ -29,55 +29,57 @@ Please see the sample format of configuration files, camera files and image file
 - Better structure for adding new functions
 
 
-## Installation - Python Version
+## Installation
 
-### Pre-request
-1. [CMake](https://cmake.org/)
-2. [Anaconda](https://www.anaconda.com/) or
-[Miniconda](https://docs.anaconda.com/miniconda/)
-3. [Mamba](https://mamba.readthedocs.io/) (recommended for faster dependency resolution)
-   ```bash
-   # Install mamba in the base environment
-   conda install -n base -c conda-forge mamba
-   ```
-4. (Windows users) [Visual Studio](https://visualstudio.microsoft.com/). **Note: install the c++ development tools**
-5. (Linux users) [gcc](https://gcc.gnu.org/).
+### Step 1: Install Miniconda (if not already installed)
 
+Download and install Miniconda for your operating system:
+- **All platforms**: [Miniconda Download](https://docs.anaconda.com/miniconda/)
 
-### Install OpenLPT
+> **Windows users**: After installation, use **Anaconda Prompt** for all following commands.
 
-Download the source code from github
+> **macOS users**: You also need Xcode Command Line Tools. Run in Terminal:
+> ```bash
+> xcode-select --install
+> ```
+
+### Step 2: Install Mamba (faster package manager)
+
 ```bash
-git clone https://github.com/Sinchy/pyOpenLPT.git
+conda install -n base -c conda-forge mamba
 ```
 
-Create a python environment and install dependencies 
-(for **Windows** users, it is suggested to use **Anaconda Prompt** finish the following steps).
+### Step 3: Download and Install OpenLPT
+
 ```bash
+# Download the code
+git clone https://github.com/Sinchy/pyOpenLPT.git
+cd pyOpenLPT
+
+# Create environment and install all dependencies (including C++ compiler)
 conda create -n OpenLPT python=3.11
 conda activate OpenLPT
-
-cd pyOpenLPT
-# use mamba to install dependencies (faster than pip)
 mamba install -c conda-forge --file requirements.txt
-conda deactivate
-```
 
-Install the package
-```bash
-conda activate OpenLPT
+# Build and install the package
 pip install .
-conda deactivate
 ```
-Use the package
-```python
-# conda activate OpenLPT (run in the bash)
-import pyopenlpt as lpt 
-redirector = lpt.PythonStreamRedirector() 
 
-config_file = '${path_to_config_file}'
-lpt.run(config_file)
+### Step 4: Verify Installation
+
+```python
+import pyopenlpt as lpt
+redirector = lpt.PythonStreamRedirector()
+print("OpenLPT installed successfully!")
 ```
+
+### Troubleshooting
+
+| Problem | Solution |
+|:--------|:---------|
+| **Windows**: Build fails | Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++" |
+| **macOS**: OpenMP error | Run `brew install libomp` (requires [Homebrew](https://brew.sh/)) |
+| **Linux**: Permission denied | Run `chmod +x` on the script, or use `sudo` |
 
 ## GUI Usage
 
