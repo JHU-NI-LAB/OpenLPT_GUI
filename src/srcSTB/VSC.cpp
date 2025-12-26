@@ -799,171 +799,327 @@ bool VSC::runVSC(std::vector<Camera> &cams) {
   if (!isReady())
     return false;
 
-  bool any_update = false;
+  // ========================================================================
+  // Joint Optimization with Re-triangulation (Aligned with Python VSC)
+  // ========================================================================
+  //
+  // Key differences from previous implementation:
+  // 1. All cameras are optimized JOINTLY (not per-camera).
+  // 2. 3D points are RE-TRIANGULATED in each iteration using current camera
+  //    parameters (not fixed).
+  // 3. Residuals include both TRIANGULATION ERROR (mm) and REPROJECTION ERROR
+  //    (px).
+  // 4. SLIDING WINDOW constraints: bounds are re-centered every outer
+  //    iteration.
+  //
+  // ========================================================================
+
   const double eps = 1e-6;                   // Numerical differentiation step
-  const int max_iter = 20;                   // Maximum LM iterations
-  const double convergence_threshold = 1e-8; // Early stop if delta norm small
-  const int n_params = 8;                    // 6 extrinsic + 2 intrinsic
+  const int max_lm_iter = 50;                // Max LM iterations per outer loop
+  const double convergence_threshold = 1e-8; // Early stop
+  const int n_params_per_cam = 8; // [rx, ry, rz, tx, ty, tz, f_eff, k1]
+  const int n_outer_iters = 3;    // Sliding window iterations
 
-  // Optimize each camera independently
-  // (Valid because 3D points are fixed from reliable tracks)
+  // Bounds constants (relative constraints)
+  const double rvec_bound = 0.1;     // ±0.1 rad (~5.7 degrees)
+  const double tvec_bound = 50.0;    // ±50 mm
+  const double f_bound_ratio = 0.05; // ±5%
+  const double k1_bound_ratio = 0.5; // ±50% or 0.1 min
+
+  // ----- Collect active camera indices -----
+  std::vector<size_t> active_cams;
   for (size_t k = 0; k < cams.size(); ++k) {
-    if (!cams[k]._is_active)
-      continue;
+    if (cams[k]._is_active && cams[k]._type == CameraType::PINHOLE) {
+      active_cams.push_back(k);
+    }
+  }
 
-    // Only support Pinhole cameras for now (Polynomial has different params)
-    if (cams[k]._type != CameraType::PINHOLE)
-      continue;
+  if (active_cams.empty()) {
+    std::cout << "  VSC: No active PINHOLE cameras found." << std::endl;
+    return false;
+  }
 
-    // ----- Collect data points for this camera -----
-    std::vector<std::pair<Pt3D, Pt2D>> data_points;
-    for (const auto &cp : _buffer) {
-      for (const auto &obs : cp._obs) {
-        if (obs._cam_id == static_cast<int>(k)) {
-          data_points.emplace_back(cp._pos_3d, obs._meas_2d);
-          break;
-        }
+  const int n_cams = static_cast<int>(active_cams.size());
+  const int total_params = n_cams * n_params_per_cam;
+
+  // ----- Build multi-view correspondences -----
+  // Each correspondence: 3D point + observations from multiple cameras
+  // Structure: {obs_list} where obs_list[i] = (cam_internal_idx, 2D point)
+  struct MultiViewCorr {
+    std::vector<std::pair<int, Pt2D>> obs; // (internal_cam_idx, 2d_meas)
+  };
+  std::vector<MultiViewCorr> correspondences;
+
+  // Map external cam_id to internal index
+  std::unordered_map<int, int> cam_id_to_internal;
+  for (int i = 0; i < n_cams; ++i) {
+    cam_id_to_internal[static_cast<int>(active_cams[i])] = i;
+  }
+
+  // Group observations by 3D point (from _buffer)
+  for (const auto &cp : _buffer) {
+    MultiViewCorr corr;
+    for (const auto &obs : cp._obs) {
+      auto it = cam_id_to_internal.find(obs._cam_id);
+      if (it != cam_id_to_internal.end()) {
+        corr.obs.emplace_back(it->second, obs._meas_2d);
+      }
+    }
+    // Need at least 2 views for triangulation
+    if (corr.obs.size() >= 2) {
+      correspondences.push_back(std::move(corr));
+    }
+  }
+
+  if (correspondences.size() < 100) {
+    std::cout << "  VSC: Insufficient multi-view correspondences ("
+              << correspondences.size() << " < 100)." << std::endl;
+    return false;
+  }
+
+  std::cout << "  VSC: " << correspondences.size()
+            << " multi-view correspondences from " << n_cams << " cameras."
+            << std::endl;
+
+  // ----- Initialize joint parameter vector -----
+  std::vector<double> params(total_params);
+  std::vector<Camera> working_cams(n_cams);
+
+  for (int i = 0; i < n_cams; ++i) {
+    working_cams[i] = cams[active_cams[i]];
+    std::vector<double> cam_params = getCamExtrinsics(working_cams[i]);
+    for (int j = 0; j < n_params_per_cam; ++j) {
+      params[i * n_params_per_cam + j] = cam_params[j];
+    }
+  }
+
+  // ----- Lambda function: Update cameras from params -----
+  auto updateCamerasFromParams = [&](const std::vector<double> &p) {
+    for (int i = 0; i < n_cams; ++i) {
+      std::vector<double> cam_p(p.begin() + i * n_params_per_cam,
+                                p.begin() + (i + 1) * n_params_per_cam);
+      updateCamExtrinsics(working_cams[i], cam_p);
+    }
+  };
+
+  // ----- Lambda function: Triangulate and compute combined error -----
+  // Returns: {total_error, triang_error_sum, reproj_error_sum, n_valid_pts}
+  auto computeErrors = [&](const std::vector<double> &p)
+      -> std::tuple<double, double, double, int> {
+    // First update cameras
+    std::vector<Camera> temp_cams = working_cams;
+    for (int i = 0; i < n_cams; ++i) {
+      std::vector<double> cam_p(p.begin() + i * n_params_per_cam,
+                                p.begin() + (i + 1) * n_params_per_cam);
+      updateCamExtrinsics(temp_cams[i], cam_p);
+    }
+
+    double total_err = 0.0;
+    double triang_err_sum = 0.0;
+    double reproj_err_sum = 0.0;
+    int n_valid = 0;
+
+    for (const auto &corr : correspondences) {
+      // Build lines of sight for triangulation
+      std::vector<Line3D> lines;
+      for (const auto &obs : corr.obs) {
+        int cam_idx = obs.first;
+        Pt2D pt_2d = obs.second;
+        // Undistort and get line of sight
+        Pt2D pt_undist = temp_cams[cam_idx].undistort(
+            pt_2d, temp_cams[cam_idx]._pinhole_param);
+        Line3D los = temp_cams[cam_idx].pinholeLine(pt_undist);
+        lines.push_back(los);
+      }
+
+      // Triangulate 3D point
+      Pt3D pt3d;
+      double triang_error = 0.0;
+      myMATH::triangulation(pt3d, triang_error, lines);
+
+      if (std::isnan(pt3d[0]) || std::isnan(pt3d[1]) || std::isnan(pt3d[2])) {
+        continue; // Skip invalid points
+      }
+
+      // Compute reprojection error for each observation
+      for (const auto &obs : corr.obs) {
+        int cam_idx = obs.first;
+        Pt2D pt_meas = obs.second;
+        Pt2D pt_proj = temp_cams[cam_idx].project(pt3d);
+        double reproj_err = myMATH::dist2(pt_proj, pt_meas);
+        reproj_err_sum += reproj_err;
+      }
+
+      // Triangulation error (from myMATH::triangulation output)
+      triang_err_sum += triang_error * triang_error;
+      n_valid++;
+
+      // Combined error: triang (mm^2) + reproj (px^2)
+      // Note: Different scales, but LM handles this via Jacobian weighting
+      total_err += triang_error * triang_error;
+      for (const auto &obs : corr.obs) {
+        Pt2D pt_proj = temp_cams[obs.first].project(pt3d);
+        total_err += myMATH::dist2(pt_proj, obs.second);
       }
     }
 
-    // Need sufficient points for stable optimization
-    if (data_points.size() < 100)
-      continue;
+    return {total_err, triang_err_sum, reproj_err_sum, n_valid};
+  };
 
-    // ----- Initialize optimization -----
-    Camera current_cam = cams[k]; // Working copy
-    std::vector<double> params = getCamExtrinsics(current_cam);
-
-    // Ensure params size is correct
-    if (params.size() != n_params)
-      continue;
-
-    double lambda = 0.001; // LM damping factor
-
-    // Compute initial error
-    double initial_err = 0;
-    for (const auto &dp : data_points) {
-      Pt2D proj = current_cam.project(dp.first);
-      initial_err += myMATH::dist2(proj, dp.second);
+  // ----- Build bounds -----
+  auto buildBounds = [&](const std::vector<double> &center_params)
+      -> std::pair<std::vector<double>, std::vector<double>> {
+    std::vector<double> lb(total_params), ub(total_params);
+    for (int i = 0; i < n_cams; ++i) {
+      int base = i * n_params_per_cam;
+      // rvec: ±0.1 rad
+      lb[base + 0] = center_params[base + 0] - rvec_bound;
+      lb[base + 1] = center_params[base + 1] - rvec_bound;
+      lb[base + 2] = center_params[base + 2] - rvec_bound;
+      ub[base + 0] = center_params[base + 0] + rvec_bound;
+      ub[base + 1] = center_params[base + 1] + rvec_bound;
+      ub[base + 2] = center_params[base + 2] + rvec_bound;
+      // tvec: ±50 mm
+      lb[base + 3] = center_params[base + 3] - tvec_bound;
+      lb[base + 4] = center_params[base + 4] - tvec_bound;
+      lb[base + 5] = center_params[base + 5] - tvec_bound;
+      ub[base + 3] = center_params[base + 3] + tvec_bound;
+      ub[base + 4] = center_params[base + 4] + tvec_bound;
+      ub[base + 5] = center_params[base + 5] + tvec_bound;
+      // f_eff: ±5%
+      double f = center_params[base + 6];
+      lb[base + 6] = f * (1.0 - f_bound_ratio);
+      ub[base + 6] = f * (1.0 + f_bound_ratio);
+      // k1: ±50% or 0.1 min
+      double k1 = center_params[base + 7];
+      double k1_margin = std::max(0.1, std::abs(k1) * k1_bound_ratio);
+      lb[base + 7] = k1 - k1_margin;
+      ub[base + 7] = k1 + k1_margin;
     }
-    double current_err = initial_err;
+    return {lb, ub};
+  };
 
-    // ----- Levenberg-Marquardt iterations -----
-    for (int iter = 0; iter < max_iter; ++iter) {
-      // Build normal equations: (JtJ + lambda*I) * delta = Jt * r
-      Matrix<double> JtJ(n_params, n_params, 0);
-      Matrix<double> Jtr(n_params, 1, 0);
+  // ----- Initial error -----
+  auto [init_err, init_triang, init_reproj, init_n] = computeErrors(params);
+  double init_reproj_rmse =
+      (init_n > 0) ? std::sqrt(init_reproj / (init_n * n_cams)) : 0.0;
+  double init_triang_rmse =
+      (init_n > 0) ? std::sqrt(init_triang / init_n) : 0.0;
+  std::cout << "  Initial: TriangErr=" << init_triang_rmse
+            << "mm, ProjErr=" << init_reproj_rmse << "px" << std::endl;
 
-      for (const auto &dp : data_points) {
-        Pt2D p_est = current_cam.project(dp.first);
-        Pt2D p_meas = dp.second;
+  // ========================================================================
+  // Sliding Window Optimization (Outer Loop)
+  // ========================================================================
+  for (int outer = 0; outer < n_outer_iters; ++outer) {
+    // Re-center bounds on current params
+    auto [lb, ub] = buildBounds(params);
 
-        // Residual: r = measured - estimated
-        double rx = p_meas[0] - p_est[0];
-        double ry = p_meas[1] - p_est[1];
+    std::cout << "  [Iter " << (outer + 1) << "/" << n_outer_iters
+              << "] Re-centered bounds. Running LM..." << std::endl;
 
-        // Compute Jacobian numerically (2xN per point)
-        Matrix<double> J_i(2, n_params, 0);
-        for (int p = 0; p < n_params; ++p) {
-          std::vector<double> params_p = params;
-          params_p[p] += eps;
+    double lambda = 0.001;
+    auto [current_err, _, __, ___] = computeErrors(params);
 
-          Camera cam_p = current_cam;
-          updateCamExtrinsics(cam_p, params_p);
-          Pt2D p_p = cam_p.project(dp.first);
+    // ----- LM Inner Loop -----
+    for (int iter = 0; iter < max_lm_iter; ++iter) {
+      // Build JtJ and Jtr using numerical Jacobian
+      Matrix<double> JtJ(total_params, total_params, 0.0);
+      Matrix<double> Jtr(total_params, 1, 0.0);
 
-          // Forward difference: dProj/dParam
-          J_i(0, p) = (p_p[0] - p_est[0]) / eps;
-          J_i(1, p) = (p_p[1] - p_est[1]) / eps;
-        }
+      // Compute residuals at current params
+      auto [f0, t0, r0, n0] = computeErrors(params);
 
-        // Accumulate normal equations: JtJ += J_i^T * J_i, Jtr += J_i^T * r
-        for (int r = 0; r < n_params; ++r) {
-          for (int c = 0; c < n_params; ++c) {
-            JtJ(r, c) += J_i(0, r) * J_i(0, c) + J_i(1, r) * J_i(1, c);
-          }
-          Jtr(r, 0) += J_i(0, r) * rx + J_i(1, r) * ry;
-        }
+      // Numerical Jacobian (forward difference)
+      std::vector<double> grad(total_params, 0.0);
+
+#pragma omp parallel for
+      for (int p = 0; p < total_params; ++p) {
+        std::vector<double> params_p = params;
+        params_p[p] += eps;
+        // Clamp to bounds
+        params_p[p] = std::max(lb[p], std::min(ub[p], params_p[p]));
+        auto [fp, tp, rp, np] = computeErrors(params_p);
+        grad[p] = (fp - f0) / eps;
       }
 
-      // Apply Marquardt damping: (JtJ + lambda * diag(JtJ)) * delta = Jtr
-      for (int i = 0; i < n_params; ++i) {
+      // Build approximate Hessian: JtJ = grad * grad^T
+      // And gradient: Jtr = grad * f0 (simplified LM update)
+      for (int i = 0; i < total_params; ++i) {
+        for (int j = 0; j < total_params; ++j) {
+          JtJ(i, j) = grad[i] * grad[j];
+        }
+        Jtr(i, 0) = -grad[i] * f0; // Negative gradient for descent
+      }
+
+      // Apply damping: (JtJ + lambda * diag(JtJ))
+      for (int i = 0; i < total_params; ++i) {
         JtJ(i, i) *= (1.0 + lambda);
+        if (JtJ(i, i) < 1e-10)
+          JtJ(i, i) = 1e-10; // Regularization
       }
 
-      // Solve normal equations
+      // Solve for delta
       Matrix<double> delta = myMATH::inverse(JtJ) * Jtr;
 
-      // Check convergence (small delta norm)
+      // Check convergence
       double delta_norm = 0;
-      for (int i = 0; i < n_params; ++i) {
+      for (int i = 0; i < total_params; ++i) {
         delta_norm += delta(i, 0) * delta(i, 0);
       }
       if (delta_norm < convergence_threshold) {
-        break; // Converged
+        break;
       }
 
-      // Compute candidate parameters
+      // Compute candidate parameters with bounds clamping
       std::vector<double> params_new = params;
-      for (int i = 0; i < n_params; ++i) {
+      for (int i = 0; i < total_params; ++i) {
         params_new[i] += delta(i, 0);
+        params_new[i] = std::max(lb[i], std::min(ub[i], params_new[i]));
       }
-
-      Camera cam_new = current_cam;
-      updateCamExtrinsics(cam_new, params_new);
 
       // Evaluate new error
-      double new_err = 0;
-      for (const auto &dp : data_points) {
-        Pt2D proj = cam_new.project(dp.first);
-        new_err += myMATH::dist2(proj, dp.second);
-      }
+      auto [new_err, nt, nr, nn] = computeErrors(params_new);
 
-      // LM decision: accept if error reduced
+      // LM decision
       if (new_err < current_err) {
-        current_cam = cam_new;
         params = params_new;
         current_err = new_err;
-        lambda /= 10.0; // Success: reduce damping (more like Gauss-Newton)
+        lambda /= 10.0;
       } else {
-        lambda *=
-            10.0; // Failure: increase damping (more like Gradient Descent)
+        lambda *= 10.0;
       }
+
+      // Early stopping if lambda too large
+      if (lambda > 1e10)
+        break;
     }
 
-    // ----- Log error improvement -----
-    double final_err = current_err;
-    size_t n_pts = data_points.size();
-    double rmse_before = std::sqrt(initial_err / n_pts);
-    double rmse_after = std::sqrt(final_err / n_pts);
-    std::cout << "  Camera " << k << ": RMSE " << rmse_before << " -> "
-              << rmse_after << " px (" << n_pts << " points)" << std::endl;
-
-    // ----- Save data_points as CSV if output_path is set -----
-    if (!_cfg._output_path.empty()) {
-      std::string csv_path =
-          _cfg._output_path + "/vsc_data_cam" + std::to_string(k) + ".csv";
-      std::ofstream csv(csv_path);
-      if (csv.is_open()) {
-        csv << "x3d,y3d,z3d,x2d,y2d\n";
-        csv << std::fixed << std::setprecision(6);
-        for (const auto &dp : data_points) {
-          csv << dp.first[0] << "," << dp.first[1] << "," << dp.first[2] << ","
-              << dp.second[0] << "," << dp.second[1] << "\n";
-        }
-        csv.close();
-      }
-    }
-
-    // Apply logic to accept/reject final result for this camera
-    // If we improved sufficiently, update the output camera
-    // (Here we blindly update if it didn't diverge, user policy may vary)
-    cams[k] = current_cam;
-    any_update = true;
+    // Log progress
+    auto [err, te, re, nv] = computeErrors(params);
+    double triang_rmse = (nv > 0) ? std::sqrt(te / nv) : 0.0;
+    double reproj_rmse = (nv > 0) ? std::sqrt(re / (nv * n_cams)) : 0.0;
+    std::cout << "  [Iter " << (outer + 1) << "] TriangErr=" << triang_rmse
+              << "mm, ProjErr=" << reproj_rmse << "px" << std::endl;
   }
 
-  // ----- Save updated camera parameters if output_path is set -----
-  if (any_update && !_cfg._output_path.empty()) {
+  // ----- Apply final parameters to cameras -----
+  updateCamerasFromParams(params);
+  for (int i = 0; i < n_cams; ++i) {
+    cams[active_cams[i]] = working_cams[i];
+  }
+
+  // ----- Final error -----
+  auto [final_err, final_triang, final_reproj, final_n] = computeErrors(params);
+  double final_triang_rmse =
+      (final_n > 0) ? std::sqrt(final_triang / final_n) : 0.0;
+  double final_reproj_rmse =
+      (final_n > 0) ? std::sqrt(final_reproj / (final_n * n_cams)) : 0.0;
+  std::cout << "  Final: TriangErr=" << final_triang_rmse
+            << "mm, ProjErr=" << final_reproj_rmse << "px" << std::endl;
+
+  // ----- Save cameras -----
+  if (!_cfg._output_path.empty()) {
     for (size_t k = 0; k < cams.size(); ++k) {
       if (!cams[k]._is_active)
         continue;
@@ -974,7 +1130,7 @@ bool VSC::runVSC(std::vector<Camera> &cams) {
     std::cout << "  VSC cameras saved to " << _cfg._output_path << std::endl;
   }
 
-  return any_update;
+  return true;
 }
 
 // ========================================================================

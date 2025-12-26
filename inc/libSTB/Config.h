@@ -106,7 +106,7 @@ struct VSCParam {
   double _isolation_radius = 3.0; ///< [px] Radius to check for neighbors
 
   // ----- Trigger -----
-  int _min_points_to_trigger = 5000; ///< Minimum points to run calibration
+  int _min_points_to_trigger = 2000; ///< Minimum points to run calibration
   int _accumulate_interval = 10;     ///< Accumulate every N frames
 
   // ----- Output -----

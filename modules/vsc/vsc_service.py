@@ -55,6 +55,7 @@ class VSCService:
         self.obj_radius = 5.0
         self.obj_type = "Tracer"
         self.image_size = (1024, 1024)
+        self.cam_output_dir = None  # Directory to save optimized cameras
         
     def set_params(self, min_track_len: int = 15, sample_points: int = 20000, 
                    min_valid_points: int = 2000):
@@ -158,21 +159,97 @@ class VSCService:
                 self.log_file = None
     
     def _load_cameras(self) -> Tuple[bool, str]:
-        """Load camera parameters from camFile directory."""
-        cam_dir = os.path.join(self.proj_dir, "camFile")
-        if not os.path.exists(cam_dir):
-            return False, f"Camera directory not found: {cam_dir}"
+        """Load camera parameters from paths specified in config.txt."""
+        config_path = os.path.join(self.proj_dir, "config.txt")
         
-        # Find all cam*.txt files
+        if not os.path.exists(config_path):
+            # Fallback to old behavior if no config.txt
+            cam_dir = os.path.join(self.proj_dir, "camFile")
+            if not os.path.exists(cam_dir):
+                return False, f"config.txt not found and camFile directory not found: {cam_dir}"
+            return self._load_cameras_from_dir(cam_dir)
+        
+        # Parse config.txt for camera file paths
+        # Format: "# Camera File Path, Max Intensity" followed by lines like:
+        # G:/path/to/cam0.txt,255
+        camera_paths = []
+        in_camera_section = False
+        
+        with open(config_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                if '# Camera File Path' in line:
+                    in_camera_section = True
+                    continue
+                
+                if in_camera_section:
+                    # Check if line starts with '#' (new section header)
+                    if line.startswith('#'):
+                        in_camera_section = False
+                        continue
+                    
+                    # Parse camera path line: "path/to/cam.txt,intensity" or just "path/to/cam.txt"
+                    parts = line.split(',')
+                    if parts:
+                        cam_path = parts[0].strip()
+                        if cam_path.endswith('.txt'):
+                            # Handle relative vs absolute paths
+                            if not os.path.isabs(cam_path):
+                                cam_path = os.path.join(self.proj_dir, cam_path)
+                            camera_paths.append(cam_path)
+        
+        if not camera_paths:
+            self._log("  No camera paths found in config.txt, trying camFile directory...")
+            cam_dir = os.path.join(self.proj_dir, "camFile")
+            if not os.path.exists(cam_dir):
+                return False, f"Camera directory not found: {cam_dir}"
+            return self._load_cameras_from_dir(cam_dir)
+        
+        # Load cameras from parsed paths
+        for cam_path in camera_paths:
+            if not os.path.exists(cam_path):
+                self._log(f"  Warning: Camera file not found: {cam_path}")
+                continue
+                
+            # Extract camera index from filename (cam0.txt -> 0)
+            filename = os.path.basename(cam_path)
+            match = re.search(r'cam(\d+)', filename)
+            if match:
+                cam_idx = int(match.group(1))
+                try:
+                    params = parse_camera_file(cam_path)
+                    self.cameras[cam_idx] = params
+                    self._log(f"  Loaded Camera {cam_idx} from {cam_path}")
+                    
+                    # Track output directory (use first camera's directory)
+                    if self.cam_output_dir is None:
+                        self.cam_output_dir = os.path.dirname(cam_path)
+                    
+                    # Get image size from first camera
+                    if 'img_size' in params:
+                        self.image_size = params['img_size']
+                except Exception as e:
+                    self._log(f"  Warning: Failed to load {cam_path}: {e}")
+        
+        if not self.cameras:
+            return False, "Failed to load any cameras"
+        
+        self._log(f"  Loaded {len(self.cameras)} cameras")
+        return True, ""
+    
+    def _load_cameras_from_dir(self, cam_dir: str) -> Tuple[bool, str]:
+        """Fallback: Load cameras from a directory."""
         cam_files = sorted([f for f in os.listdir(cam_dir) 
                            if f.startswith("cam") and f.endswith(".txt") 
                            and not f.startswith("vsc_cam")])
         
         if not cam_files:
-            return False, "No camera files found in camFile"
+            return False, f"No camera files found in {cam_dir}"
         
         for cam_file in cam_files:
-            # Extract camera index from filename (cam0.txt -> 0)
             match = re.search(r'cam(\d+)', cam_file)
             if match:
                 cam_idx = int(match.group(1))
@@ -183,7 +260,6 @@ class VSCService:
                     self.cameras[cam_idx] = params
                     self._log(f"  Loaded Camera {cam_idx} from {cam_file}")
                     
-                    # Get image size from first camera
                     if 'img_size' in params:
                         self.image_size = params['img_size']
                 except Exception as e:
@@ -971,7 +1047,13 @@ class VSCService:
     
     def _save_cameras(self):
         """Save optimized camera parameters to vsc_cam*.txt files."""
-        cam_dir = os.path.join(self.proj_dir, "camFile")
+        # Use tracked output directory, fallback to camFile
+        cam_dir = self.cam_output_dir if self.cam_output_dir else os.path.join(self.proj_dir, "camFile")
+        
+        # Ensure directory exists
+        os.makedirs(cam_dir, exist_ok=True)
+        
+        self._log(f"  Output directory: {cam_dir}")
         
         for cam_idx, cam_params in self.cameras.items():
             output_path = os.path.join(cam_dir, f"vsc_cam{cam_idx}.txt")
@@ -999,23 +1081,22 @@ class VSCService:
         with open(config_path, 'r') as f:
             content = f.read()
         
-        # Replace camFile/cam*.txt with camFile/vsc_cam*.txt
+        # Replace cam{N}.txt with vsc_cam{N}.txt in filename portion
+        # Works for any path format: absolute, relative, forward/back slashes
         for cam_idx in self.cameras.keys():
-            old_pattern = f"camFile/cam{cam_idx}.txt"
-            new_pattern = f"camFile/vsc_cam{cam_idx}.txt"
-            content = content.replace(old_pattern, new_pattern)
-            
-            # Also handle Windows-style paths
-            old_pattern_win = f"camFile\\cam{cam_idx}.txt"
-            new_pattern_win = f"camFile\\vsc_cam{cam_idx}.txt"
-            content = content.replace(old_pattern_win, new_pattern_win)
+            # Match cam{N}.txt at end of path (before comma or end of line)
+            # e.g., "G:/path/to/cam0.txt,255" -> "G:/path/to/vsc_cam0.txt,255"
+            import re
+            pattern = rf'([\\/])cam{cam_idx}\.txt'
+            replacement = rf'\1vsc_cam{cam_idx}.txt'
+            content = re.sub(pattern, replacement, content)
         
         with open(config_path, 'w') as f:
             f.write(content)
         
         self._log(f"  Updated config.txt with optimized camera paths")
 
-        self._log(f"  Updated config.txt with optimized camera paths")
+
 
     def _update_object_config(self, stats: dict):
         """

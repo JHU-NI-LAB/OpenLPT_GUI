@@ -802,36 +802,98 @@ class TrackingView(QWidget):
         self.process.start(exe_path, [config_path])
 
     def _check_project_files(self, proj_dir):
-        """Verify existence of mandatory files/folders."""
+        """Verify existence of mandatory files/folders by parsing config.txt."""
         errors = []
         
+        config_path = os.path.join(proj_dir, "config.txt")
+        
         # Check config.txt
-        if not os.path.exists(os.path.join(proj_dir, "config.txt")):
+        if not os.path.exists(config_path):
             errors.append("- Master config file (config.txt) is missing.")
-
-        # Check camFile folder and contents
-        cam_dir = os.path.join(proj_dir, "camFile")
-        if not os.path.isdir(cam_dir):
-            errors.append("- Camera parameters directory (camFile) is missing.")
+            return False, "\n".join(errors)
+        
+        # Parse config.txt for paths
+        camera_paths = []
+        image_paths = []
+        sub_config_path = None
+        
+        current_section = None
+        
+        with open(config_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Detect section headers
+                if '# Camera File Path' in line:
+                    current_section = 'camera'
+                    continue
+                elif '# Image File Path' in line:
+                    current_section = 'image'
+                    continue
+                elif '# STB Config Files' in line:
+                    current_section = 'stb_config'
+                    continue
+                elif line.startswith('#'):
+                    current_section = None  # Other section
+                    continue
+                
+                # Parse content lines
+                if current_section == 'camera':
+                    parts = line.split(',')
+                    if parts:
+                        cam_path = parts[0].strip()
+                        if cam_path.endswith('.txt'):
+                            if not os.path.isabs(cam_path):
+                                cam_path = os.path.normpath(os.path.join(proj_dir, cam_path))
+                            camera_paths.append(cam_path)
+                
+                elif current_section == 'image':
+                    img_path = line.strip()
+                    if img_path.endswith('.txt'):
+                        if not os.path.isabs(img_path):
+                            img_path = os.path.normpath(os.path.join(proj_dir, img_path))
+                        image_paths.append(img_path)
+                
+                elif current_section == 'stb_config':
+                    cfg_path = line.strip()
+                    if cfg_path.endswith('.txt'):
+                        if not os.path.isabs(cfg_path):
+                            cfg_path = os.path.normpath(os.path.join(proj_dir, cfg_path))
+                        sub_config_path = cfg_path
+        
+        # Check camera files
+        if not camera_paths:
+            errors.append("- No camera file paths found in config.txt (# Camera File Path section).")
         else:
-            txt_files = [f for f in os.listdir(cam_dir) if f.startswith("cam") and f.endswith(".txt")]
-            if not txt_files:
-                errors.append("- No camera parameter files (cam*.txt) found in camFile.")
-
-        # Check imgFile folder and subfolders
-        img_dir = os.path.join(proj_dir, "imgFile")
-        if not os.path.isdir(img_dir):
-            errors.append("- Preprocessed images directory (imgFile) is missing.")
+            missing_cams = [p for p in camera_paths if not os.path.exists(p)]
+            if missing_cams:
+                for p in missing_cams[:3]:  # Show first 3
+                    errors.append(f"- Camera file not found: {p}")
+                if len(missing_cams) > 3:
+                    errors.append(f"  ... and {len(missing_cams) - 3} more missing camera files.")
+        
+        # Check image list files
+        if not image_paths:
+            errors.append("- No image file paths found in config.txt (# Image File Path section).")
         else:
-            cam_folders = [f for f in os.listdir(img_dir) if f.startswith("cam") and os.path.isdir(os.path.join(img_dir, f))]
-            if not cam_folders:
-                errors.append("- No camera image folders (cam0, cam1, etc.) found in imgFile.")
-
-        # Check sub-config based on settings
-        if self.settings_view:
+            missing_imgs = [p for p in image_paths if not os.path.exists(p)]
+            if missing_imgs:
+                for p in missing_imgs[:3]:  # Show first 3
+                    errors.append(f"- Image list file not found: {p}")
+                if len(missing_imgs) > 3:
+                    errors.append(f"  ... and {len(missing_imgs) - 3} more missing image list files.")
+        
+        # Check sub-config (from config.txt or settings)
+        if sub_config_path:
+            if not os.path.exists(sub_config_path):
+                errors.append(f"- STB config file not found: {sub_config_path}")
+        elif self.settings_view:
             obj_type = self.settings_view.obj_type_combo.currentText()
             sub_config = f"{obj_type.lower()}Config.txt"
-            if not os.path.exists(os.path.join(proj_dir, sub_config)):
+            fallback_path = os.path.join(proj_dir, sub_config)
+            if not os.path.exists(fallback_path):
                 errors.append(f"- Sub-configuration file ({sub_config}) is missing. Please save configuration again.")
 
         if errors:
