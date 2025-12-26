@@ -691,6 +691,47 @@ class TrackingView(QWidget):
         exec_layout.addWidget(self.stop_btn)
         layout.addWidget(exec_group)
 
+        # Volume Self-Calibration Controls
+        vsc_group = QGroupBox("Volume Self-Calibration")
+        vsc_layout = QGridLayout(vsc_group)
+        vsc_layout.setSpacing(8)
+        
+        # Parameters
+        vsc_layout.addWidget(QLabel("Min Track Length:"), 0, 0)
+        self.vsc_min_track_len = QSpinBox()
+        self.vsc_min_track_len.setRange(5, 100)
+        self.vsc_min_track_len.setValue(15)
+        self.vsc_min_track_len.setStyleSheet("background-color: #222; color: #fff; border: 1px solid #444;")
+        vsc_layout.addWidget(self.vsc_min_track_len, 0, 1)
+        
+        vsc_layout.addWidget(QLabel("Sample Points:"), 1, 0)
+        self.vsc_sample_points = QSpinBox()
+        self.vsc_sample_points.setRange(1000, 100000)
+        self.vsc_sample_points.setValue(20000)
+        self.vsc_sample_points.setStyleSheet("background-color: #222; color: #fff; border: 1px solid #444;")
+        vsc_layout.addWidget(self.vsc_sample_points, 1, 1)
+        
+        vsc_layout.addWidget(QLabel("Min Valid Points:"), 2, 0)
+        self.vsc_min_valid = QSpinBox()
+        self.vsc_min_valid.setRange(100, 10000)
+        self.vsc_min_valid.setValue(2000)
+        self.vsc_min_valid.setStyleSheet("background-color: #222; color: #fff; border: 1px solid #444;")
+        vsc_layout.addWidget(self.vsc_min_valid, 2, 1)
+        
+        # Run VSC Button
+        self.vsc_btn = QPushButton(" Run VSC")
+        self.vsc_btn.setIcon(qta.icon("fa5s.crosshairs", color="white"))
+        self.vsc_btn.setFixedHeight(36)
+        self.vsc_btn.setStyleSheet("""
+            QPushButton { background-color: #1a5276; color: white; font-weight: bold; border-radius: 4px; }
+            QPushButton:hover { background-color: #2471a3; }
+            QPushButton:disabled { background-color: #333; color: #666; }
+        """)
+        self.vsc_btn.clicked.connect(self._run_vsc)
+        vsc_layout.addWidget(self.vsc_btn, 3, 0, 1, 2)
+        
+        layout.addWidget(vsc_group)
+
         layout.addStretch()
 
     def showEvent(self, event):
@@ -802,6 +843,66 @@ class TrackingView(QWidget):
             self.process.terminate()
             if not self.process.waitForFinished(2000):
                 self.process.kill()
+
+    def _run_vsc(self):
+        """Run Volume Self-Calibration."""
+        proj_dir = self.proj_path_edit.text()
+        if not proj_dir or not os.path.exists(proj_dir):
+            QMessageBox.warning(self, "Error", "Project directory not found. Please set it first.")
+            return
+        
+        # Check if tracks exist
+        track_dir = os.path.join(proj_dir, "Results", "ConvergeTrack")
+        if not os.path.exists(track_dir):
+            QMessageBox.warning(self, "Error", 
+                "No tracking results found.\nPlease run OpenLPT first to generate tracks.")
+            return
+        
+        # Switch to execution log tab
+        self.log_text.clear()
+        self.vis_tabs.setCurrentWidget(self.log_text)
+        
+        # Disable button during execution
+        self.vsc_btn.setEnabled(False)
+        self.vsc_btn.setText(" Running VSC...")
+        
+        # Import VSC service
+        try:
+            from modules.vsc import VSCService
+        except ImportError as e:
+            self._append_log(f"[Error] Failed to import VSC module: {e}\n")
+            self.vsc_btn.setEnabled(True)
+            self.vsc_btn.setText(" Run VSC")
+            return
+        
+        # Create and configure service
+        def log_to_ui(msg):
+            self._append_log(msg + "\n")
+            QCoreApplication.processEvents()
+        
+        service = VSCService(proj_dir, log_callback=log_to_ui)
+        service.set_params(
+            min_track_len=self.vsc_min_track_len.value(),
+            sample_points=self.vsc_sample_points.value(),
+            min_valid_points=self.vsc_min_valid.value()
+        )
+        
+        # Run VSC
+        success, message = service.run()
+        
+        # Re-enable button
+        self.vsc_btn.setEnabled(True)
+        self.vsc_btn.setText(" Run VSC")
+        
+        if success:
+            self._append_log(f"\n[SUCCESS] {message}\n")
+            QMessageBox.information(self, "VSC Complete", 
+                f"Volume Self-Calibration completed successfully!\n\n"
+                f"Optimized cameras saved to camFile/vsc_cam*.txt\n"
+                f"Log saved to VSC_log.txt")
+        else:
+            self._append_log(f"\n[FAILED] {message}\n")
+            QMessageBox.warning(self, "VSC Failed", f"Volume Self-Calibration failed:\n{message}")
 
     def _handle_stdout(self):
         data = self.process.readAllStandardOutput().data().decode(errors='replace')
