@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QStackedWidget, QLabel, QFrame, QStatusBar, QToolBar, 
     QPushButton, QProgressBar, QSizePolicy, QToolButton, QButtonGroup
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, Slot
 from PySide6.QtGui import QIcon, QFont, QAction, QColor, QPainter
 import qtawesome as qta
 
@@ -339,41 +339,60 @@ class OpenLPTMainWindow(QMainWindow):
         """Check for updates asynchronously on startup."""
         try:
             from utils.update_checker import check_for_updates_async
+            print("[App] Starting update check...")
             check_for_updates_async(self._on_update_check_complete)
         except Exception as e:
             print(f"Update check failed: {e}")
     
     def _on_update_check_complete(self, result: dict):
         """Handle update check result (called from background thread)."""
+        print(f"[App] Update check complete. Available: {result.get('available')}")
         if result.get("available"):
-            # Use QTimer to ensure we're on the main thread
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(0, lambda: self._show_update_dialog(result))
+            # Store result and use thread-safe method to show dialog
+            self._update_result = result
+            # Use QMetaObject.invokeMethod for thread-safe call
+            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+            QMetaObject.invokeMethod(self, "_show_update_dialog_slot", Qt.QueuedConnection)
+    
+    @Slot()
+    def _show_update_dialog_slot(self):
+        """Slot to show update dialog (called from main thread)."""
+        print("[App] _show_update_dialog_slot called")
+        if hasattr(self, '_update_result'):
+            self._show_update_dialog(self._update_result)
     
     def _show_update_dialog(self, result: dict):
         """Show update available dialog."""
-        from PySide6.QtWidgets import QMessageBox, QTextEdit
-        
-        current = result.get("current", "?")
-        latest = result.get("latest", "?")
-        url = result.get("url", "")
-        notes = result.get("notes", "")
-        
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Update Available")
-        msg.setIcon(QMessageBox.Information)
-        msg.setText(f"<h3>A new version of OpenLPT is available!</h3>")
-        msg.setInformativeText(
-            f"<p>Current version: <b>{current}</b><br>"
-            f"Latest version: <b>{latest}</b></p>"
-            f"<p>Visit the <a href='{url}'>releases page</a> to download the update.</p>"
-        )
-        
-        if notes:
-            msg.setDetailedText(f"Release Notes:\n\n{notes}")
-        
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.exec()
+        print("[App] Showing update dialog...")
+        try:
+            from PySide6.QtWidgets import QMessageBox
+            
+            current = result.get("current", "?")
+            latest = result.get("latest", "?")
+            url = result.get("url", "")
+            notes = result.get("notes", "")
+            
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Update Available")
+            msg.setIcon(QMessageBox.Information)
+            msg.setText(f"<h3>A new version of OpenLPT is available!</h3>")
+            msg.setInformativeText(
+                f"<p>Current version: <b>{current}</b><br>"
+                f"Latest version: <b>{latest}</b></p>"
+                f"<p><b>To update (if installed via git clone):</b><br>"
+                f"Run the following commands in Terminal:</p>"
+                f"<pre>git pull\npip install . --no-build-isolation</pre>"
+                f"<p>Or visit the <a href='{url}'>releases page</a> for more info.</p>"
+            )
+            
+            if notes:
+                msg.setDetailedText(f"Release Notes:\n\n{notes}")
+            
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec()
+            print("[App] Update dialog closed.")
+        except Exception as e:
+            print(f"[App] Error showing dialog: {e}")
 
 
 def main():

@@ -49,6 +49,8 @@ def check_for_updates() -> Dict[str, Any]:
             - url: str, URL to release page (if available)
             - notes: str, release notes excerpt (if available)
     """
+    print(f"[UpdateChecker] Checking for updates... Current version: {CURRENT_VERSION}")
+    
     result = {
         "available": False,
         "current": CURRENT_VERSION,
@@ -69,8 +71,10 @@ def check_for_updates() -> Dict[str, Any]:
         if response.status_code == 200:
             data = response.json()
             latest_version = data.get("tag_name", "").lstrip("v")
+            print(f"[UpdateChecker] Latest version on GitHub: {latest_version}")
             
             if latest_version and compare_versions(CURRENT_VERSION, latest_version):
+                print(f"[UpdateChecker] Update available! {CURRENT_VERSION} -> {latest_version}")
                 result["available"] = True
                 result["latest"] = latest_version
                 result["url"] = data.get("html_url", f"https://github.com/{GITHUB_REPO}/releases")
@@ -80,17 +84,22 @@ def check_for_updates() -> Dict[str, Any]:
                 if notes and len(notes) > 500:
                     notes = notes[:500] + "..."
                 result["notes"] = notes
+            else:
+                print(f"[UpdateChecker] No update needed. Current: {CURRENT_VERSION}, Latest: {latest_version}")
                 
         elif response.status_code == 404:
             # No releases yet
-            pass
+            print(f"[UpdateChecker] No releases found on GitHub (404)")
         else:
             result["error"] = f"GitHub API returned status {response.status_code}"
+            print(f"[UpdateChecker] API error: {response.status_code}")
             
     except ImportError:
         result["error"] = "requests module not installed"
+        print(f"[UpdateChecker] Error: requests module not installed")
     except Exception as e:
         result["error"] = str(e)
+        print(f"[UpdateChecker] Error: {e}")
     
     return result
 
