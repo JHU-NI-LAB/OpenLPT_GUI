@@ -301,17 +301,7 @@ class OpenLPTMainWindow(QMainWindow):
         self.status_label.setStyleSheet("color: #00ff88;")
         self.statusbar.addWidget(self.status_label)
         
-        # Progress bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedWidth(200)
-        self.progress_bar.setTextVisible(False)
-        self.progress_bar.setValue(0)
-        self.statusbar.addPermanentWidget(self.progress_bar)
         
-        # Frame counter
-        self.frame_label = QLabel("Frame: 0 / 0")
-        self.frame_label.setStyleSheet("color: #a0a0a0; padding-right: 10px;")
-        self.statusbar.addPermanentWidget(self.frame_label)
 
         # Credit label
         credit_label = QLabel("Designed by Shiyong Tan @ Ni Research Lab")
@@ -329,11 +319,6 @@ class OpenLPTMainWindow(QMainWindow):
         self.status_label.setStyleSheet(f"color: {color};")
         self.status_label.setText(message)
     
-    def update_progress(self, current: int, total: int):
-        """Update the progress bar and frame counter."""
-        if total > 0:
-            self.progress_bar.setValue(int((current / total) * 100))
-            self.frame_label.setText(f"Frame: {current} / {total}")
     
     def _check_for_updates(self):
         """Check for updates asynchronously on startup."""
