@@ -219,12 +219,13 @@ if not exist "%VSWHERE%" goto :FoundVCVars
 set "VCVARS_TMP=%TEMP%\openlpt_vcvars_%RANDOM%.txt"
 "%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat > "%VCVARS_TMP%"
 
-if exist "%VCVARS_TMP%" (
-    for /f "usebackq tokens=*" %%i in ("%VCVARS_TMP%") do (
-        set "VCVARS=%%i"
-    )
-    del "%VCVARS_TMP%"
+if not exist "%VCVARS_TMP%" goto :SkipTempRead
+for /f "usebackq tokens=*" %%i in ("%VCVARS_TMP%") do (
+    set "VCVARS=%%i"
 )
+del "%VCVARS_TMP%"
+
+:SkipTempRead
 
 
 :FoundVCVars
