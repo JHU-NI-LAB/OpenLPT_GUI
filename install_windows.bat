@@ -212,17 +212,19 @@ if defined HAS_VS (
 )
 
 :: Method 2: vswhere fallback (if Method 1 failed)
-if not defined VCVARS (
-    if exist "%VSWHERE%" (
-        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat`) do (
-            set "VCVARS=%%i"
-        )
-    )
+if defined VCVARS goto :FoundVCVars
+if not exist "%VSWHERE%" goto :FoundVCVars
+
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat`) do (
+    set "VCVARS=%%i"
 )
 
+
+:FoundVCVars
 if defined VCVARS (
     echo [INFO] Found vcvars script at: "%VCVARS%"
     echo [INFO] Activating Visual Studio Environment (x64)...
+
     
     :: Call vcvars. If it's vcvarsall.bat, we need to pass 'x64' or 'amd64'
     echo "%VCVARS%" | findstr /i "vcvarsall.bat" >nul
