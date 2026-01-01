@@ -195,17 +195,28 @@ echo [4/4] Installing OpenLPT...
 
 
 :: Activate Developer Command Prompt for VS
-if defined HAS_VS (
-    echo [INFO] Activating Visual Studio Environment...
-    set "VCVARS=%HAS_VS%\VC\Auxiliary\Build\vcvars64.bat"
+echo [INFO] Locating vcvars64.bat...
+set "VCVARS="
+if exist "%VSWHERE%" (
+    :: Try VCTools (Build Tools)
+    for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat`) do (
+        set "VCVARS=%%i"
+    )
+    :: Fallback: Try NativeDesktop (IDE)
+    if not defined VCVARS (
+        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.NativeDesktop -find VC\Auxiliary\Build\vcvars64.bat`) do (
+            set "VCVARS=%%i"
+        )
+    )
 )
 
-if exist "%VCVARS%" (
+if defined VCVARS (
+    echo [INFO] Found vcvars64.bat at: "%VCVARS%"
     call "%VCVARS%" >nul
     echo [INFO] Environment activated.
     set "CMAKE_GENERATOR=NMake Makefiles"
 ) else (
-    echo [WARNING] vcvars64.bat not found at expected location.
+    echo [WARNING] vcvars64.bat not found.
     echo          Build *might* fail if tools are not in PATH.
 )
 

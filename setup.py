@@ -49,21 +49,23 @@ class CMakeBuild(build_ext):
             cmake_args += [f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"]
 
             # Helper for Visual Studio Generator parallel builds
-            # NMake doesn't support /m, but Ninja uses -j.
-            # We check the generator env var (set by install_windows.bat) or CMake default.
+            # If CMAKE_GENERATOR is set (e.g. by install_windows.bat), pass it explicitly via -G
             generator = os.environ.get("CMAKE_GENERATOR", "")
+            if generator:
+                 print(f"[setup.py] Using generator from env: {generator}")
+                 cmake_args += ["-G", generator]
             
             if "Visual Studio" in generator:
                  build_args += ["--", "/m"]
             elif "NMake" in generator:
-                 # NMake is serial, no extra flags suitable here
+                 # NMake is serial
                  pass 
             elif "Ninja" in generator:
                  build_args += ["--", "-j"]
             else:
                  # Fallback: Assume VS if not specified (default CMake behavior on Windows)
-                 # But safer to NOT assume parallel if unknown
-                 build_args += ["--", "/m"]
+                 if not generator:
+                      build_args += ["--", "/m"]
 
         else:
             cmake_args += [f"-DCMAKE_BUILD_TYPE={cfg}", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"]
