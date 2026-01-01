@@ -380,17 +380,27 @@ class OpenLPTMainWindow(QMainWindow):
             msg.setInformativeText(
                 f"<p>Current version: <b>{current}</b><br>"
                 f"Latest version: <b>{latest}</b></p>"
-                f"<p><b>To update (if installed via git clone):</b><br>"
-                f"Run the following commands in Terminal:</p>"
-                f"<pre>git pull\npip install . --no-build-isolation</pre>"
-                f"<p>Or visit the <a href='{url}'>releases page</a> for more info.</p>"
+                f"<p>Click <b>Update Now</b> to automatically update and restart.</p>"
+                f"<p>Or visit the <a href='{url}'>releases page</a> for manual instructions.</p>"
             )
             
             if notes:
                 msg.setDetailedText(f"Release Notes:\n\n{notes}")
             
-            msg.setStandardButtons(QMessageBox.Ok)
+            # Add custom buttons
+            update_btn = msg.addButton("Update Now", QMessageBox.AcceptRole)
+            cancel_btn = msg.addButton("Later", QMessageBox.RejectRole)
+            
+            msg.setDefaultButton(update_btn)
             msg.exec()
+            
+            if msg.clickedButton() == update_btn:
+                print("[App] User clicked Update Now")
+                from utils.auto_updater import run_auto_update
+                # Project root assumed to be parent of 'gui' folder
+                project_root = Path(__file__).resolve().parent.parent
+                run_auto_update(project_root)
+            
             print("[App] Update dialog closed.")
         except Exception as e:
             print(f"[App] Error showing dialog: {e}")
