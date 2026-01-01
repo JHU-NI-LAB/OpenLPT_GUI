@@ -194,30 +194,56 @@ echo [4/4] Installing OpenLPT...
 
 
 
+:: Reset CMAKE_GENERATOR to avoid picking up stale user variables
+set "CMAKE_GENERATOR="
+set "CMAKE_GENERATOR_INSTANCE="
+
 :: Activate Developer Command Prompt for VS
 echo [INFO] Locating vcvars64.bat...
 set "VCVARS="
-if exist "%VSWHERE%" (
-    :: Try VCTools (Build Tools)
-    for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat`) do (
-        set "VCVARS=%%i"
+
+if defined HAS_VS (
+    :: Method 1: Standard Build Tools Path
+    if exist "%HAS_VS%\VC\Auxiliary\Build\vcvars64.bat" (
+        set "VCVARS=%HAS_VS%\VC\Auxiliary\Build\vcvars64.bat"
+    ) else if exist "%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat" (
+        set "VCVARS=%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat"
     )
-    :: Fallback: Try NativeDesktop (IDE)
-    if not defined VCVARS (
-        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.NativeDesktop -find VC\Auxiliary\Build\vcvars64.bat`) do (
+)
+
+:: Method 2: vswhere fallback (if Method 1 failed)
+if not defined VCVARS (
+    if exist "%VSWHERE%" (
+        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Workload.VCTools -find VC\Auxiliary\Build\vcvars64.bat`) do (
             set "VCVARS=%%i"
         )
     )
 )
 
 if defined VCVARS (
-    echo [INFO] Found vcvars64.bat at: "%VCVARS%"
-    call "%VCVARS%" >nul
+    echo [INFO] Found vcvars script at: "%VCVARS%"
+    echo [INFO] Activating Visual Studio Environment (x64)...
+    
+    :: Call vcvars. If it's vcvarsall.bat, we need to pass 'x64' or 'amd64'
+    echo "%VCVARS%" | findstr /i "vcvarsall.bat" >nul
+    if not errorlevel 1 (
+        call "%VCVARS%" x64 >nul
+    ) else (
+        call "%VCVARS%" >nul
+    )
+    
     echo [INFO] Environment activated.
     set "CMAKE_GENERATOR=NMake Makefiles"
 ) else (
-    echo [WARNING] vcvars64.bat not found.
-    echo          Build *might* fail if tools are not in PATH.
+    echo.
+    echo [ERROR] Could not find vcvars64.bat or vcvarsall.bat!
+    echo         We found VS at "%HAS_VS%" but the VC tools seem missing.
+    echo.
+    echo         Please open Visual Studio Installer and ensure:
+    echo         "MSVC v143 - VS 2022 C++ x64/x86 build tools" is checked.
+    echo.
+    pause
+    exit /b 1
 )
 
 :: Clean previous build artifacts
