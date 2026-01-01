@@ -229,32 +229,30 @@ del "%VCVARS_TMP%"
 
 
 :FoundVCVars
-if defined VCVARS (
-    echo [INFO] Found vcvars script at: "%VCVARS%"
-    echo [INFO] Activating Visual Studio Environment (x64)...
+if not defined VCVARS goto :NoVCVars
 
-    
-    :: Call vcvars. If it's vcvarsall.bat, we need to pass 'x64' or 'amd64'
-    echo "%VCVARS%" | findstr /i "vcvarsall.bat" >nul
-    if not errorlevel 1 (
-        call "%VCVARS%" x64 >nul
-    ) else (
-        call "%VCVARS%" >nul
-    )
-    
-    echo [INFO] Environment activated.
-    set "CMAKE_GENERATOR=NMake Makefiles"
-) else (
-    echo.
-    echo [ERROR] Could not find vcvars64.bat or vcvarsall.bat!
-    echo         We found VS at "%HAS_VS%" but the VC tools seem missing.
-    echo.
-    echo         Please open Visual Studio Installer and ensure:
-    echo         "MSVC v143 - VS 2022 C++ x64/x86 build tools" is checked.
-    echo.
-    pause
-    exit /b 1
-)
+echo [INFO] Found vcvars script at: "%VCVARS%"
+echo [INFO] Activating Visual Studio Environment (x64)...
+
+:: Call vcvars64.bat directly (most common case for Build Tools)
+call "%VCVARS%" >nul
+
+echo [INFO] Environment activated.
+set "CMAKE_GENERATOR=NMake Makefiles"
+goto :AfterVCVars
+
+:NoVCVars
+echo.
+echo [ERROR] Could not find vcvars64.bat or vcvarsall.bat!
+echo         We found VS at "%HAS_VS%" but the VC tools seem missing.
+echo.
+echo         Please open Visual Studio Installer and ensure:
+echo         "MSVC v143 - VS 2022 C++ x64/x86 build tools" is checked.
+echo.
+pause
+exit /b 1
+
+:AfterVCVars
 
 :: Clean previous build artifacts
 if exist build (
