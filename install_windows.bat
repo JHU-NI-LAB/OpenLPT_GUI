@@ -168,11 +168,11 @@ if %errorlevel% neq 0 (
 echo.
 echo [2/3] Activating Environment...
 call conda activate OpenLPT
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo [Error] Failed to activate 'OpenLPT' environment.
-    echo Please make sure you have initialized conda for your shell (conda init cmd.exe).
+    echo Please make sure you have initialized conda for your shell ^(conda init cmd.exe^).
     pause
-    exit /b %errorlevel%
+    exit /b 1
 )
 
 echo.
