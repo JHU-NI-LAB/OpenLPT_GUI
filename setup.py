@@ -22,7 +22,8 @@ class CMakeBuild(build_ext):
     def run(self):
         # [Windows] Robust Visual Studio Detection
         # CMake 3.x+ often fails to find "Build Tools" (vs_buildtools.exe) installations automatically.
-        # We manually find the installation path using `vswhere` and set CMAKE_GENERATOR_INSTANCE.
+        # We manually find the installation path using `vswhere` and set CMAKE_GENERATOR_INSTANCE via CLI.
+        self.vs_instance_path = None
         if platform.system() == "Windows" and "CMAKE_GENERATOR_INSTANCE" not in os.environ:
             try:
                 # Default vswhere location
@@ -38,9 +39,7 @@ class CMakeBuild(build_ext):
 
                     if output:
                         print(f"[setup.py] Found Visual Studio at: {output}")
-                        print(f"[setup.py] Force-setting CMAKE_GENERATOR_INSTANCE to help CMake.")
-                        os.environ["CMAKE_GENERATOR_INSTANCE"] = output
-                        os.environ["CMAKE_GENERATOR"] = "Visual Studio 17 2022"
+                        self.vs_instance_path = output
                     else:
                         print("[setup.py] vswhere found no suitable Visual Studio installation.")
             except Exception as e:
@@ -65,7 +64,11 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Windows":
             cmake_args += [f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"]
-            # Let CMake auto-detect the Visual Studio version (now aided by env vars)
+            # Explicitly tell CMake which generator and instance to use if we found it
+            if hasattr(self, 'vs_instance_path') and self.vs_instance_path:
+                 cmake_args += ["-G", "Visual Studio 17 2022"]
+                 cmake_args += [f"-DCMAKE_GENERATOR_INSTANCE={self.vs_instance_path}"]
+            
             build_args += ["--", "/m"]
         else:
             cmake_args += [f"-DCMAKE_BUILD_TYPE={cfg}", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"]
@@ -74,6 +77,7 @@ class CMakeBuild(build_ext):
         build_temp = Path(self.build_temp).resolve()
         build_temp.mkdir(parents=True, exist_ok=True)
 
+        print(f"[setup.py] CMake Args: {cmake_args}")
         subprocess.check_call(["cmake", ext.sourcedir] + cmake_args, cwd=build_temp)
         subprocess.check_call(["cmake", "--build", "."] + build_args, cwd=build_temp)
 
