@@ -208,35 +208,40 @@ cd "$DIR"
                 iconset_dir = resources_dir / "AppIcon.iconset"
                 os.makedirs(iconset_dir, exist_ok=True)
                 
-                # We need specific sizes for iconutil
-                # 16, 32, 64, 128, 256, 512, 1024 (and 2x versions)
-                # For simplicity, we'll generate a few key sizes.
-                sizes = [16, 32, 64, 128, 256, 512, 1024]
+                # 16, 32, 128, 256, 512
+                # Apple strictly defines the required iconset names
+                icon_definitions = [
+                    (16, "icon_16x16.png"),
+                    (32, "icon_16x16@2x.png"),
+                    (32, "icon_32x32.png"),
+                    (64, "icon_32x32@2x.png"),
+                    (128, "icon_128x128.png"),
+                    (256, "icon_128x128@2x.png"),
+                    (256, "icon_256x256.png"),
+                    (512, "icon_256x256@2x.png"),
+                    (512, "icon_512x512.png"),
+                    (1024, "icon_512x512@2x.png")
+                ]
                 
-                for s in sizes:
-                    out_name = f"icon_{s}x{s}.png"
-                    out_path = iconset_dir / out_name
+                for size, name in icon_definitions:
+                    out_path = iconset_dir / name
                     # sips -z H W input --out output
-                    ret = os.system(f'sips -z {s} {s} "{icon_path}" --out "{out_path}" > /dev/null 2>&1')
-                    
-                    if s > 512: continue # Skip 2x for smaller ones to save time, or do 2x logic if needed
-                    
-                    # 2x version
-                    out_name_2x = f"icon_{s}x{s}@2x.png"
-                    out_path_2x = iconset_dir / out_name_2x
-                    s2 = s * 2
-                    os.system(f'sips -z {s2} {s2} "{icon_path}" --out "{out_path_2x}" > /dev/null 2>&1')
+                    os.system(f'sips -z {size} {size} "{icon_path}" --out "{out_path}" > /dev/null 2>&1')
 
                 # Convert iconset to icns
                 icns_path = resources_dir / "AppIcon.icns"
-                ret = os.system(f'iconutil -c icns "{iconset_dir}" -o "{icns_path}" > /dev/null 2>&1')
+                ret = os.system(f'iconutil -c icns "{iconset_dir}" -o "{icns_path}"')
                 
                 # Cleanup iconset
                 import shutil
                 shutil.rmtree(iconset_dir, ignore_errors=True)
                 
                 if ret != 0:
-                     print("[Shortcut] Warning: Failed to convert icon using iconutil.")
+                     print("[Shortcut] Warning: iconutil failed. Trying fallback to simple PNG copy.")
+                     # Fallback: Copy PNG as AppIcon.png (some macOS versions support this via plist)
+                     # We already set CFBundleIconFile to AppIcon, so AppIcon.png might work.
+                     import shutil
+                     shutil.copy(icon_path, resources_dir / "AppIcon.png")
                      
             except Exception as e:
                 print(f"[Shortcut] Icon generation failed: {e}")
@@ -244,6 +249,10 @@ cd "$DIR"
     except Exception as e:
         print(f"Failed to create Mac App Bundle: {e}")
         return -1
+    
+    # Force Finder to verify the new app bundle (clears icon cache)
+    if app_path.exists():
+        os.system(f'touch "{app_path}"')
         
     return 1 if app_path.exists() else -1
 
