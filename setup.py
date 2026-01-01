@@ -20,6 +20,32 @@ class CMakeExtension(Extension):
 
 class CMakeBuild(build_ext):
     def run(self):
+        # [Windows] Robust Visual Studio Detection
+        # CMake 3.x+ often fails to find "Build Tools" (vs_buildtools.exe) installations automatically.
+        # We manually find the installation path using `vswhere` and set CMAKE_GENERATOR_INSTANCE.
+        if platform.system() == "Windows" and "CMAKE_GENERATOR_INSTANCE" not in os.environ:
+            try:
+                # Default vswhere location
+                vswhere = r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+                if os.path.exists(vswhere):
+                    # Check for VCTools (Build Tools) or NativeDesktop (IDE)
+                    cmd = [vswhere, "-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Workload.VCTools", "-property", "installationPath"]
+                    output = subprocess.check_output(cmd, encoding='utf-8').strip()
+                    
+                    if not output: # Try NativeDesktop if VCTools not found
+                        cmd[5] = "Microsoft.VisualStudio.Workload.NativeDesktop"
+                        output = subprocess.check_output(cmd, encoding='utf-8').strip()
+
+                    if output:
+                        print(f"[setup.py] Found Visual Studio at: {output}")
+                        print(f"[setup.py] Force-setting CMAKE_GENERATOR_INSTANCE to help CMake.")
+                        os.environ["CMAKE_GENERATOR_INSTANCE"] = output
+                        os.environ["CMAKE_GENERATOR"] = "Visual Studio 17 2022"
+                    else:
+                        print("[setup.py] vswhere found no suitable Visual Studio installation.")
+            except Exception as e:
+                print(f"[setup.py] Failed to run vswhere: {e}")
+
         subprocess.check_call(["cmake", "--version"])
         for ext in self.extensions:
             self.build_extension(ext)
@@ -39,7 +65,7 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Windows":
             cmake_args += [f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{cfg.upper()}={extdir}"]
-            # Let CMake auto-detect the Visual Studio version
+            # Let CMake auto-detect the Visual Studio version (now aided by env vars)
             build_args += ["--", "/m"]
         else:
             cmake_args += [f"-DCMAKE_BUILD_TYPE={cfg}", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"]
