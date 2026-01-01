@@ -188,9 +188,21 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [4/4] Installing OpenLPT...
+
+:: Critical: Tell CMake exactly where to find the VS instance we verified
+if defined HAS_VS (
+    echo [INFO] Explicitly setting CMake Generator Instance to: "%HAS_VS%"
+    set "CMAKE_GENERATOR_INSTANCE=%HAS_VS%"
+	set "CMAKE_GENERATOR=Visual Studio 17 2022"
+)
+
 pip install . --no-build-isolation
 if %errorlevel% neq 0 (
     echo [Error] Pip install failed.
+    echo.
+    echo Common fixes:
+    echo 1. Close this window and try running the script again.
+    echo 2. Update to the latest version of this script (git pull).
     pause
     exit /b %errorlevel%
 )
