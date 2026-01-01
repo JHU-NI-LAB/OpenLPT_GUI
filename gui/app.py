@@ -373,6 +373,7 @@ class OpenLPTMainWindow(QMainWindow):
             notes = result.get("notes", "")
             
             msg = QMessageBox(self)
+            msg.setAttribute(Qt.WA_StyledBackground, True) # Force QSS on Mac
             msg.setWindowTitle("Update Available")
             msg.setIcon(QMessageBox.Information)
             msg.setText(f"<h3>A new version of OpenLPT is available!</h3>")

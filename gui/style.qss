@@ -14,7 +14,6 @@ QWidget {
 }
 
 /* Navigation Sidebar Button */
-/* Navigation Sidebar Button */
 QToolButton {
     background-color: transparent;
     border: none;
@@ -106,7 +105,6 @@ QLabel#statusLabel {
     font-size: 12px;
 }
 
-/* Input Fields */
 /* Input Fields */
 QLineEdit, QSpinBox, QDoubleSpinBox {
     background-color: #2d3a4a;
@@ -341,4 +339,12 @@ QFrame#paramPanel {
     background-color: #050505; /* Very slightly lighter than black */
     border-radius: 0px;
     border-left: 1px solid #1f2f3f;
+}
+
+/* Message Box (Fix for Mac/Light Theme) */
+QMessageBox {
+    background-color: #1e1e1e;
+}
+QMessageBox QLabel {
+    color: #eaeaea;
 }
