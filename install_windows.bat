@@ -53,8 +53,8 @@ echo        (This will open a prompt asking for permission)
 echo.
 echo Running: winget install Microsoft.VisualStudio.2022.BuildTools...
 
-:: We use VCTools because it is the correct ID for the "Build Tools" SKU
-winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --scope machine --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --norestart"
+:: Install with specific components: MSVC v143 + Windows SDK
+winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --scope machine --override "--add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --includeRecommended --passive --norestart"
 
 :: 3. Re-Check after Winget (Check 1 OR Check 2)
 set "HAS_VS_RECHECK="
@@ -95,8 +95,8 @@ echo.
     
 if not exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" goto :ManualInstallVS
 
-:: Use VCTools here as well
-start /wait "" "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" modify --installPath "%VS_PARTIAL_PATH%" --add Microsoft.VisualStudio.Workload.VCTools --passive --norestart
+:: Add VCTools workload plus specific components
+start /wait "" "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe" modify --installPath "%VS_PARTIAL_PATH%" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --passive --norestart
         
 :: 5. Final Re-Check (Check 1 OR Check 2)
 if exist "%VSWHERE%" (
@@ -201,7 +201,7 @@ set "PIP_SCRIPT=%TEMP%\openlpt_pip_install_%RANDOM%.bat"
 echo @echo off > "%PIP_SCRIPT%"
 echo cd /d "%~dp0" >> "%PIP_SCRIPT%"
 echo call conda activate OpenLPT >> "%PIP_SCRIPT%"
-echo set "CMAKE_GENERATOR=" >> "%PIP_SCRIPT%"
+echo set "CMAKE_GENERATOR=Ninja" >> "%PIP_SCRIPT%"
 echo set "CMAKE_GENERATOR_INSTANCE=" >> "%PIP_SCRIPT%"
 echo set "CMAKE_GENERATOR_PLATFORM=" >> "%PIP_SCRIPT%"
 echo set "CMAKE_GENERATOR_TOOLSET=" >> "%PIP_SCRIPT%"
