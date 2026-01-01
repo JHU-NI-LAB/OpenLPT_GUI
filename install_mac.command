@@ -10,6 +10,26 @@ echo "3. Install the OpenLPT package"
 echo ""
 read -p "Press enter to continue..."
 
+# --- Xcode Command Line Tools Check ---
+echo ""
+echo "[0.5/4] Checking for Xcode Command Line Tools..."
+if ! xcode-select -p &> /dev/null; then
+    echo ""
+    echo "[ERROR] Xcode Command Line Tools not found!"
+    echo "        These are REQUIRED for compiling C++ extensions on macOS."
+    echo ""
+    echo "Please run the following command in your terminal:"
+    echo "    xcode-select --install"
+    echo ""
+    echo "Follow the pop-up prompts to install, then RUN THIS SCRIPT AGAIN."
+    echo "================================================================"
+    read -p "Press Enter to exit..."
+    exit 1
+else
+    echo "[OK] Xcode Command Line Tools found."
+fi
+# --------------------------------------
+
 cd "$(dirname "$0")"
 
 # Check if conda is installed

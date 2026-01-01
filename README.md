@@ -37,72 +37,68 @@ Please see the sample format of configuration files, camera files and image file
 
 ## Installation
 
-### Step 1: Install Miniconda (if not already installed)
+### Method 1: One-Click Installation (Recommended)
+
+We provide automated scripts that set up everything for you (including Conda, environment, and dependencies).
+
+1.  **Download the code**:
+    ```bash
+    git clone https://github.com/Sinchy/pyOpenLPT.git
+    cd pyOpenLPT
+    ```
+
+2.  **Run the Installer**:
+
+    -   **Windows**: 
+        Double-click `install_windows.bat`
+        *(Or run in terminal: `install_windows.bat`)*
+
+    -   **macOS**: 
+        Run in terminal:
+        ```bash
+        bash install_mac.command
+        ```
+
+    > **Note on Prerequisites**: 
+    > *   The scripts will check for **Visual Studio Build Tools** (Windows) or **Xcode Command Line Tools** (macOS) and guide you if they are missing.
+    > *   If you don't have Conda, the script can automatically install **Miniforge3** for you.
+
+---
+
+### Method 2: Manual Installation
+
+<details>
+<summary>Click to expand manual installation steps</summary>
+
+#### Step 1: Install Miniconda (if not already installed)
 
 Download and install Miniconda for your operating system:
 - **All platforms**: [Miniconda Download](https://docs.anaconda.com/miniconda/)
 
 > **Windows users**: After installation, use **Anaconda Prompt** for all following commands.
 
-> **macOS users**: You also need Xcode Command Line Tools. Run in Terminal:
-> ```bash
-> xcode-select --install
-> ```
-
-### Step 2: Install Mamba (faster package manager)
+#### Step 2: Install Mamba (faster package manager)
 
 ```bash
 conda install -n base -c conda-forge mamba
 ```
 
-### Step 3: Download and Install OpenLPT
+#### Step 3: Create Environment and Install
 
 ```bash
-# Download the code
-git clone https://github.com/Sinchy/pyOpenLPT.git
-cd pyOpenLPT
-
-# Create environment and install all dependencies (including C++ compiler)
-conda create -n OpenLPT python=3.11
+# Create environment
+conda create -n OpenLPT python=3.10
 conda activate OpenLPT
+
+# Install dependencies
 mamba install -c conda-forge --file requirements.txt
 
 # Build and install the package
+# Note: For macOS, you may need to set environment variables for OpenMP (see install_mac.command source)
 pip install . --no-build-isolation
 ```
 
-### Step 4: Verify Installation
-
-```python
-import pyopenlpt as lpt
-redirector = lpt.PythonStreamRedirector()
-print("OpenLPT installed successfully!")
-```
-
-### Troubleshooting
-
-| Problem | Solution |
-|:--------|:---------|
-| **Windows**: Build fails | Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++" |
-| **macOS**: `omp.h` not found | See macOS OpenMP fix below |
-| **macOS**: Wrong architecture | Ensure your conda env matches your CPU: `python -c "import platform; print(platform.machine())"` |
-| **Linux**: Permission denied | Run `chmod +x` on the script, or use `sudo` |
-| **All**: Stale cache | Delete build folder: `rm -rf build/` and retry |
-
-#### macOS OpenMP Fix
-
-If you get `fatal error: 'omp.h' file not found`:
-
-```bash
-# Set environment variables to use conda's OpenMP
-export CC="$CONDA_PREFIX/bin/clang"
-export CXX="$CONDA_PREFIX/bin/clang++"
-export CPPFLAGS="-I$CONDA_PREFIX/include"
-export LDFLAGS="-L$CONDA_PREFIX/lib"
-
-# Then reinstall
-pip install . --no-build-isolation
-```
+</details>
 
 ## GUI Usage
 
@@ -111,7 +107,7 @@ OpenLPT provides a graphical user interface for easier interaction with the trac
 ### Launch the GUI
 ```bash
 conda activate OpenLPT
-python gui/main.py
+python GUI.py
 ```
 
 The GUI provides modules for:
