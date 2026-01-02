@@ -50,7 +50,7 @@ lpt.run(config_file)
 
 ## Demo
 
-<video src="gui/demo.mp4" width="100%" controls></video>
+<video src="gui/demo.mp4" width="100%" controls autoplay loop muted></video>
 
 ---
 
