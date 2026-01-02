@@ -69,6 +69,13 @@ if errorlevel 1 (
 )
 
 echo.
+echo [3.5/4] Installing Windows C++ Compiler (clang)...
+call mamba install -c conda-forge clang clangxx llvm-tools -y
+if errorlevel 1 (
+    echo [Warning] Failed to install clang compiler. Build might fail.
+)
+
+echo.
 echo [4/4] Installing OpenLPT...
 
 
