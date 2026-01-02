@@ -46,16 +46,26 @@ jobs:
             
             # 下载原 Release 附件
             mkdir -p ./release_assets
-            gh release download "$TAG_NAME" --dir ./release_assets --repo "$GITHUB_REPOSITORY" --clobber || echo "No assets found."
+            gh release download "$TAG_NAME" --dir ./release_assets --repo "$GITHUB_REPOSITORY" --clobber || echo "No assets to download."
             
             # 获取原 Release 信息
             REL_TITLE=$(gh release view "$TAG_NAME" --json name -q .name --repo "$GITHUB_REPOSITORY")
             REL_BODY=$(gh release view "$TAG_NAME" --json body -q .body --repo "$GITHUB_REPOSITORY")
             
-            # 同步到实验室仓库
-            gh release create "$TAG_NAME" ./release_assets/* \
-              --repo "JHU-NI-LAB/OpenLPT_GUI" \
-              --title "$REL_TITLE" \
-              --notes "$REL_BODY" \
-              --verify-tag || gh release edit "$TAG_NAME" --notes "$REL_BODY" --title "$REL_TITLE" --repo "JHU-NI-LAB/OpenLPT_GUI"
+            # 检查是否有附件需要上传 (处理 v2.1.0 这种没有附件的情况)
+            if [ "$(ls -A ./release_assets 2>/dev/null)" ]; then
+              echo "Uploading assets..."
+              gh release create "$TAG_NAME" ./release_assets/* \
+                --repo "JHU-NI-LAB/OpenLPT_GUI" \
+                --title "$REL_TITLE" \
+                --notes "$REL_BODY" \
+                --verify-tag || gh release edit "$TAG_NAME" --notes "$REL_BODY" --title "$REL_TITLE" --repo "JHU-NI-LAB/OpenLPT_GUI"
+            else
+              echo "No assets found, creating/updating metadata only."
+              gh release create "$TAG_NAME" \
+                --repo "JHU-NI-LAB/OpenLPT_GUI" \
+                --title "$REL_TITLE" \
+                --notes "$REL_BODY" \
+                --verify-tag || gh release edit "$TAG_NAME" --notes "$REL_BODY" --title "$REL_TITLE" --repo "JHU-NI-LAB/OpenLPT_GUI"
+            fi
           fi
