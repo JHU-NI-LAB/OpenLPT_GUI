@@ -13,18 +13,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false # ！！！必须加这一行，防止系统凭据干扰
 
       - name: Push to Lab Repo
         env:
           MY_TOKEN: ${{ secrets.LAB_REPO_TOKEN }}
         run: |
-          # 动态拼接地址
-          REMOTE_URL="https://x-access-token:${MY_TOKEN}@github.com/JHU-NI-LAB/OpenLPT_GUI.git"
-          
-          # 确保此时没有残留的 lab 远程
+          # 清除可能存在的旧远程
           git remote remove lab 2>/dev/null || true
           
-          git remote add lab "$REMOTE_URL"
-          
-          # 推送并强制同步分支
-          git push lab main --force
+          # 直接把 Token 拼在推送到地址里
+          git push https://x-access-token:${MY_TOKEN}@github.com/JHU-NI-LAB/OpenLPT_GUI.git main:main --force
