@@ -50,7 +50,7 @@ lpt.run(config_file)
 
 ## Demo
 
-<video src="gui/OpenLPT%20-%203D%20particle%20tracking%20system%202026-01-02%2014-58-30.mp4" width="100%" controls autoplay loop muted></video>
+<video src="gui/demo.mp4?raw=true" width="100%" controls autoplay loop muted></video>
 
 ---
 
