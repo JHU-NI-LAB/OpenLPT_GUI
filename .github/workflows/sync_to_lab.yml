@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*' # 触发同步：推送以 v 开头的标签
 
 jobs:
   repo-sync:
@@ -13,14 +15,35 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false # ！！！必须加这一行，防止系统凭据干扰
+          persist-credentials: false
 
       - name: Push to Lab Repo
         env:
+          GH_TOKEN: ${{ secrets.LAB_REPO_TOKEN }}
           MY_TOKEN: ${{ secrets.LAB_REPO_TOKEN }}
         run: |
-          # 清除可能存在的旧远程
-          git remote remove lab 2>/dev/null || true
-          
-          # 直接把 Token 拼在推送到地址里
-          git push https://x-access-token:${MY_TOKEN}@github.com/JHU-NI-LAB/OpenLPT_GUI.git main:main --force
+          # 1. 配置远程并同步分支/标签
+          git remote add lab https://x-access-token:${MY_TOKEN}@github.com/JHU-NI-LAB/OpenLPT_GUI.git
+          git push lab main:main --force
+          git push lab --tags --force
+
+          # 2. 如果是标签推送，则镜像 Release 及其附件
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            echo "Detected tag: $TAG_NAME. Syncing Release..."
+            
+            # 下载原 Release 附件
+            mkdir -p ./release_assets
+            gh release download "$TAG_NAME" --dir ./release_assets --repo "$GITHUB_REPOSITORY" --clobber || echo "No assets found."
+            
+            # 获取原 Release 信息
+            REL_TITLE=$(gh release view "$TAG_NAME" --json name -q .name --repo "$GITHUB_REPOSITORY")
+            REL_BODY=$(gh release view "$TAG_NAME" --json body -q .body --repo "$GITHUB_REPOSITORY")
+            
+            # 同步到实验室仓库
+            gh release create "$TAG_NAME" ./release_assets/* \
+              --repo "JHU-NI-LAB/OpenLPT_GUI" \
+              --title "$REL_TITLE" \
+              --notes "$REL_BODY" \
+              --verify-tag || gh release edit "$TAG_NAME" --notes "$REL_BODY" --title "$REL_TITLE" --repo "JHU-NI-LAB/OpenLPT_GUI"
+          fi
