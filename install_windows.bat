@@ -5,125 +5,232 @@ echo       OpenLPT One-Click Installer
 echo ==========================================
 echo.
 echo This script will:
-echo 1. Create a Conda environment named 'OpenLPT'
-echo 2. Install all dependencies
-echo 3. Install the OpenLPT package
+echo 1. Install Visual Studio Build Tools (if needed)
+echo 2. Create a Conda environment named 'OpenLPT'
+echo 3. Install all dependencies
+echo 4. Install the OpenLPT package
 echo.
-
-
-:: Using clang compiler from conda-forge, no Visual Studio needed!
 
 cd /d "%~dp0"
 
+:: ============================================
+:: STEP 0: Visual Studio Build Tools Check
+:: ============================================
+
 echo.
-where conda >nul 2>nul
+echo [0/4] Checking for Visual Studio Build Tools...
+
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+set "VS_INSTALLER=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vs_installer.exe"
+set "HAS_VS="
+set "VCVARS="
+
+:: Check if vswhere exists
+if not exist "%VSWHERE%" (
+    echo [INFO] Visual Studio Installer not found. Will install Build Tools...
+    goto :InstallVS
+)
+
+:: Check for proper C++ tools installation
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+    set "HAS_VS=%%i"
+)
+
+if defined HAS_VS (
+    :: Verify vcvarsall.bat exists
+    if exist "%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat" (
+        echo [OK] Visual Studio C++ Tools found at: "%HAS_VS%"
+        set "VCVARS=%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat"
+        goto :VSCheckDone
+    )
+)
+
+echo [WARNING] Visual Studio found but C++ tools incomplete.
+goto :InstallVS
+
+:: ============================================
+:: Install Visual Studio Build Tools
+:: ============================================
+:InstallVS
+echo.
+echo ================================================================
+echo         Installing Visual Studio Build Tools 2022
+echo ================================================================
+echo.
+
+:: Download VS Build Tools installer
+echo [INFO] Downloading Visual Studio Build Tools installer...
+set "VS_INSTALLER_URL=https://aka.ms/vs/17/release/vs_buildtools.exe"
+set "VS_INSTALLER_PATH=%TEMP%\vs_buildtools.exe"
+
+curl -L -o "%VS_INSTALLER_PATH%" "%VS_INSTALLER_URL%"
 if errorlevel 1 (
-    echo [!] Conda/Mamba not found.
-    echo [!] Should I automatically download and install Miniforge3?
-    echo     (Includes Conda + Mamba, installs to %UserProfile%\Miniforge3)
-    echo.
+    echo [ERROR] Failed to download VS Build Tools installer.
+    echo Please download manually from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
     pause
-    
-    echo.
-    echo [0/3] Downloading Miniforge3 Installer...
-    :: Curl is available on Win 10 1803+
-    curl -L -o miniforge_installer.exe "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Windows-x86_64.exe"
-    
-    echo Installing Miniforge3 (Active user only, Silent)...
-    start /wait "" miniforge_installer.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniforge3
-    del miniforge_installer.exe
-    
-    echo Initializing Conda...
-    call "%UserProfile%\Miniforge3\Scripts\activate.bat"
-    call conda init cmd.exe
-    
-    echo Miniforge3 installed!
+    exit /b 1
 )
 
 echo.
-echo [1/3] Creating Conda Environment 'OpenLPT'...
+echo [INFO] Installing Visual Studio Build Tools with C++ components...
+echo        This may take 5-15 minutes. Please wait...
+echo.
+echo        Components being installed:
+echo        - MSVC v143 C++ x64/x86 build tools
+echo        - Windows 11 SDK
+echo        - C++ CMake tools
+echo.
+
+:: Install with required components
+"%VS_INSTALLER_PATH%" --wait --passive --norestart ^
+    --add Microsoft.VisualStudio.Workload.VCTools ^
+    --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+    --add Microsoft.VisualStudio.Component.Windows11SDK.22621 ^
+    --add Microsoft.VisualStudio.Component.VC.CMake.Project ^
+    --includeRecommended
+
+if errorlevel 1 (
+    echo [WARNING] VS installer returned an error, but installation may have succeeded.
+    echo           Continuing to verify...
+)
+
+:: Clean up installer
+del "%VS_INSTALLER_PATH%" 2>nul
+
+:: Re-check after installation
+echo.
+echo [INFO] Verifying installation...
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+
+if not exist "%VSWHERE%" (
+    echo [ERROR] VS installation failed. vswhere not found.
+    pause
+    exit /b 1
+)
+
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2^>nul`) do (
+    set "HAS_VS=%%i"
+)
+
+if not defined HAS_VS (
+    echo [ERROR] Visual Studio Build Tools installation failed.
+    echo Please install manually from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    echo Make sure to select "Desktop development with C++" workload.
+    pause
+    exit /b 1
+)
+
+if exist "%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat" (
+    echo [SUCCESS] Visual Studio Build Tools installed successfully!
+    set "VCVARS=%HAS_VS%\VC\Auxiliary\Build\vcvarsall.bat"
+) else (
+    echo [ERROR] vcvarsall.bat not found after installation.
+    pause
+    exit /b 1
+)
+
+:VSCheckDone
+echo.
+
+:: ============================================
+:: STEP 1: Check/Install Conda
+:: ============================================
+
+echo [1/4] Checking for Conda/Mamba...
+where mamba >nul 2>nul
+if errorlevel 1 (
+    where conda >nul 2>nul
+    if errorlevel 1 (
+        echo [INFO] Conda not found. Installing Miniforge3...
+        
+        curl -L -o miniforge_installer.exe "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Windows-x86_64.exe"
+        
+        echo Installing Miniforge3...
+        start /wait "" miniforge_installer.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\Miniforge3
+        del miniforge_installer.exe
+        
+        echo Initializing Conda...
+        call "%UserProfile%\Miniforge3\Scripts\activate.bat"
+        call conda init cmd.exe
+        
+        echo [SUCCESS] Miniforge3 installed!
+    )
+)
+
+:: ============================================
+:: STEP 2: Create Conda Environment
+:: ============================================
+
+echo.
+echo [2/4] Creating Conda Environment 'OpenLPT'...
 call conda create -n OpenLPT python=3.10 -y
 if errorlevel 1 (
-    echo [Warning] Environment might already exist or conda failed. Trying to proceed...
+    echo [Warning] Environment might already exist. Continuing...
 )
 
 echo.
-echo [2/3] Activating Environment...
+echo [3/4] Activating Environment and Installing Dependencies...
 call conda activate OpenLPT
 if errorlevel 1 (
     echo [Error] Failed to activate 'OpenLPT' environment.
-    echo Please make sure you have initialized conda for your shell ^(conda init cmd.exe^).
     pause
     exit /b 1
 )
 
-echo.
-echo [3/3] Installing Dependencies...
-:: Try mamba first, fallback to conda if missing (optional logic, sticking to user pref for mamba)
+:: Install dependencies
 call mamba install -c conda-forge --file requirements.txt -y
 if errorlevel 1 (
     echo [Error] Mamba install failed.
-    echo NOTE: This project requires mamba. Please install miniforge or mambaforge.
     pause
     exit /b 1
 )
 
+:: ============================================
+:: STEP 4: Build and Install OpenLPT
+:: ============================================
+
 echo.
-echo [3.5/4] Installing Windows C++ Compiler (MinGW-w64)...
-call mamba install -c conda-forge m2w64-toolchain -y
+echo [4/4] Building and Installing OpenLPT...
+echo.
+
+:: Activate Visual Studio environment
+echo [INFO] Activating Visual Studio environment...
+call "%VCVARS%" x64
 if errorlevel 1 (
-    echo [Warning] Failed to install MinGW compiler. Build might fail.
+    echo [WARNING] vcvarsall.bat returned an error, but continuing...
 )
 
-echo.
-echo [4/4] Installing OpenLPT...
+:: Set CMake to use NMake (works reliably with MSVC)
+set "CMAKE_GENERATOR=NMake Makefiles"
+set "CMAKE_GENERATOR_INSTANCE="
+set "CMAKE_GENERATOR_PLATFORM="
+set "CMAKE_GENERATOR_TOOLSET="
 
-
-
-:: Fresh terminal will handle VS environment detection automatically
-
-:: Create a helper script to run pip install in a fresh environment
-set "PIP_SCRIPT=%TEMP%\openlpt_pip_install_%RANDOM%.bat"
-echo @echo off > "%PIP_SCRIPT%"
-echo cd /d "%~dp0" >> "%PIP_SCRIPT%"
-echo call conda activate OpenLPT >> "%PIP_SCRIPT%"
-echo set "CMAKE_GENERATOR=Ninja" >> "%PIP_SCRIPT%"
-echo set "CMAKE_GENERATOR_INSTANCE=" >> "%PIP_SCRIPT%"
-echo set "CMAKE_GENERATOR_PLATFORM=" >> "%PIP_SCRIPT%"
-echo set "CMAKE_GENERATOR_TOOLSET=" >> "%PIP_SCRIPT%"
-echo set "CC=gcc" >> "%PIP_SCRIPT%"
-echo set "CXX=g++" >> "%PIP_SCRIPT%"
-echo echo. >> "%PIP_SCRIPT%"
-echo echo [INFO] Running pip install in fresh environment... >> "%PIP_SCRIPT%"
-echo if exist build rmdir /s /q build >> "%PIP_SCRIPT%"
-echo if exist openlpt.egg-info rmdir /s /q openlpt.egg-info >> "%PIP_SCRIPT%"
-echo pip install . --no-build-isolation >> "%PIP_SCRIPT%"
-echo if errorlevel 1 ( >> "%PIP_SCRIPT%"
-echo     echo [Error] Pip install failed. >> "%PIP_SCRIPT%"
-echo     pause >> "%PIP_SCRIPT%"
-echo     exit /b 1 >> "%PIP_SCRIPT%"
-echo ) >> "%PIP_SCRIPT%"
-echo echo. >> "%PIP_SCRIPT%"
-echo echo ========================================== >> "%PIP_SCRIPT%"
-echo echo       Installation Complete! >> "%PIP_SCRIPT%"
-echo echo       Launching OpenLPT GUI... >> "%PIP_SCRIPT%"
-echo echo ========================================== >> "%PIP_SCRIPT%"
-echo python GUI.py >> "%PIP_SCRIPT%"
-echo del "%%~f0" >> "%PIP_SCRIPT%"
+:: Clean previous build
+if exist build rmdir /s /q build
+if exist openlpt.egg-info rmdir /s /q openlpt.egg-info
 
 echo.
-echo [INFO] Spawning fresh terminal for compilation...
-echo       (This ensures a clean environment with latest VS paths)
-echo.
-start "" cmd /c "%PIP_SCRIPT%"
-
-echo [INFO] Installation continues in the new window.
-echo       You can close this window.
-exit /b 0
+echo [INFO] Running pip install...
+pip install . --no-build-isolation
+if errorlevel 1 (
+    echo.
+    echo [Error] Pip install failed.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ==========================================
 echo       Installation Complete!
-echo       Launching OpenLPT GUI...
 echo ==========================================
+echo.
+echo To use OpenLPT:
+echo   1. Open a new terminal
+echo   2. Run: conda activate OpenLPT
+echo   3. Run: python GUI.py
+echo.
+echo Launching OpenLPT GUI...
 python GUI.py
+
+pause
