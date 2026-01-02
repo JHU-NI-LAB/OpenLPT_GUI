@@ -18,7 +18,7 @@ def get_desktop_path():
             path_str = winreg.QueryValueEx(key, "Desktop")[0]
             return Path(path_str)
         except Exception:
-            return Path(os.environ["USERPROFILE"]) / "Desktop"
+            return Path(os.environ.get("USERPROFILE", "")) / "Desktop"
     else:
         return Path.home() / "Desktop"
 
@@ -45,9 +45,14 @@ def create_windows_shortcut(target_script, icon_path):
         print(f"Shortcut already exists at {shortcut_path}")
         return 2
     
-    # Try win32com first (best Unicode support)
+    # Use win32com for Unicode path support
     try:
         import win32com.client
+    except ImportError:
+        print("[Shortcut] ERROR: pywin32 not installed. Please run: pip install pywin32")
+        return -1
+    
+    try:
         shell = win32com.client.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortcut(str(shortcut_path))
         shortcut.TargetPath = python_exe
@@ -59,62 +64,10 @@ def create_windows_shortcut(target_script, icon_path):
         shortcut.Save()
         print(f"Shortcut created at {shortcut_path}")
         return 1
-    except ImportError:
-        print("[Shortcut] win32com not available, trying PowerShell fallback...")
     except Exception as e:
-        print(f"[Shortcut] win32com failed: {e}, trying PowerShell fallback...")
-    
-    # PowerShell fallback with UTF-8 BOM and proper encoding
-    ps_script = f'''
-# Ensure UTF-8 encoding
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
-
-$ShortcutPath = "{shortcut_path}"
-
-if (Test-Path $ShortcutPath) {{
-    Write-Host "Shortcut already exists at $ShortcutPath"
-    exit 2
-}}
-
-$WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-$Shortcut.TargetPath = "{python_exe}"
-$Shortcut.Arguments = '"{target_path}"'
-$Shortcut.WorkingDirectory = "{working_dir}"
-$Shortcut.Description = "OpenLPT 3D Particle Tracking"
-'''
-    
-    if icon_str:
-        ps_script += f'$Shortcut.IconLocation = "{icon_str}"\n'
-        
-    ps_script += '''
-$Shortcut.Save()
-Write-Host "Shortcut created at $ShortcutPath"
-'''
-    
-    ps_file = working_dir / "create_shortcut.ps1"
-    try:
-        # Write with UTF-8 BOM for PowerShell
-        with open(ps_file, "w", encoding="utf-8-sig") as f:
-            f.write(ps_script)
-        
-        # Run PowerShell with UTF-8 code page
-        cmd = f'chcp 65001 >nul && powershell -NoProfile -ExecutionPolicy Bypass -File "{ps_file}"'
-        ret = os.system(cmd)
-        
-        if ret == 2:
-            return 2
-        elif ret != 0:
-            print(f"[Shortcut] PowerShell execution failed with code {ret}")
-            return -1
-            
-    except Exception as e:
-        print(f"[Shortcut] Failed to run PowerShell script: {e}")
-        return False
-    finally:
-        if ps_file.exists():
-            os.remove(ps_file)
+        print(f"[Shortcut] ERROR creating shortcut: {e}")
+        print(f"[Shortcut] Target path: {shortcut_path}")
+        return -1
             
     # Return 1 for success
     return 1
