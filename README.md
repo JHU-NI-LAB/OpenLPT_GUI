@@ -1,12 +1,26 @@
-# OpenLPT 2.0
+# OpenLPT - Open-source Lagrangian Particle Tracking GUI
 
-OpenLPT 2.0 is a new version of particle tracking code. It can be used for tracking dense tracers, polydisperse bubbles and many other objects. 
+[![GitHub Stars](https://img.shields.io/github/stars/JHU-NI-LAB/OpenLPT_GUI?style=social)](https://github.com/JHU-NI-LAB/OpenLPT_GUI)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+**OpenLPT** is a powerful, user-friendly open-source software for **3D Lagrangian Particle Tracking (LPT)**, designed for experimental fluid dynamics and flow visualization. Developed by the **Neural Interfaces Lab at Johns Hopkins University (JHU)**, it provides a comprehensive GUI-based workflow for high-precision particle tracking and reconstruction.
+
+---
+
+### 🚀 Key Capabilities
+*   **3D Particle Tracking**: Robust Lagrangian tracking (LPT) and Shake-the-Box (STB) methods.
+*   **Multi-Camera Calibration**: Easy-to-use tools for wand and plate calibration (intrinsic & extrinsic parameters).
+*   **Cross-Platform**: Full support for **Windows**, **macOS**, and **Linux**.
+*   **Performance**: High-performance C++ core with Python Python bindings for flexibility and speed.
+
+**Keywords**: *Lagrangian Particle Tracking (LPT), Shake-the-Box (STB), 3D Flow Visualization, PIV, Particle Reconstruction, Multi-camera Calibration, Experimental Fluid Dynamics, JHU Neural Interfaces Lab.*
+
+---
+
+## Quick Start (Pre-compiled)
 
 Look how easy it is to use:
-```bash 
-# Use in command line
-${code_path}/bin/OpenLPT.exe config.txt
-```
 
 ```python
 # Use in python
@@ -18,14 +32,6 @@ redirector = lpt.PythonStreamRedirector()
 config_file = '${path_to_config_file}'
 lpt.run(config_file)
 ```
-
-```bash
-# Use GUI
-conda activate OpenLPT
-python gui/main.py
-```
-
-Please see the sample format of configuration files, camera files and image files in /test/test_STB or /test/test_STB_Bubble.
 
 ## Features
 - User-friendly interface in python
@@ -59,134 +65,87 @@ We provide automated scripts that set up everything for you (including Conda, en
         bash install_mac.command
         ```
 
-    > **Note on Prerequisites**: 
-    > *   The scripts will check for **Visual Studio Build Tools** (Windows) or **Xcode Command Line Tools** (macOS) and guide you if they are missing.
-    > *   If you don't have Conda, the script can automatically install **Miniforge3** for you.
-
----
+3.  **Run the GUI**:
+    After installation, simply run:
+    ```bash
+    python GUI.py
+    ```
 
 ### Method 2: Manual Installation
 
-<details>
-<summary>Click to expand manual installation steps</summary>
+If you prefer to set up the environment manually:
 
-#### Step 1: Install Miniconda (if not already installed)
+1.  **Prerequisites**:
+    - [Miniforge](https://github.com/conda-forge/miniforge) or [Anaconda](https://www.anaconda.com/)
+    - C++ Compiler (Visual Studio 2022 for Windows, Clang for macOS/Linux)
 
-Download and install Miniconda for your operating system:
-- **All platforms**: [Miniconda Download](https://docs.anaconda.com/miniconda/)
+2.  **Create Environment and Install**:
 
-> **Windows users**: After installation, use **Anaconda Prompt** for all following commands.
+    ```bash
+    # Create environment
+    conda create -n OpenLPT python=3.10
+    conda activate OpenLPT
 
-#### Step 2: Install Mamba (faster package manager)
+    # Install dependencies
+    mamba install -c conda-forge --file requirements.txt
 
-```bash
-conda install -n base -c conda-forge mamba
-```
-
-#### Step 3: Create Environment and Install
-
-```bash
-# Create environment
-conda create -n OpenLPT python=3.10
-conda activate OpenLPT
-
-# Install dependencies
-mamba install -c conda-forge --file requirements.txt
-
-# Build and install the package
-# Note: For macOS, you may need to set environment variables for OpenMP (see install_mac.command source)
-pip install . --no-build-isolation
-```
+    # Build and install the package
+    pip install . --no-build-isolation
+    ```
 
 #### Troubleshooting
 
 | Problem | Solution |
-|:--------|:---------|
-| **Windows**: Build fails | Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++" |
-| **macOS**: `omp.h` not found | See macOS OpenMP fix below |
-| **macOS**: Wrong architecture | Ensure your conda env matches your CPU: `python -c "import platform; print(platform.machine())"` |
-| **Linux**: Permission denied | Run `chmod +x` on the script, or use `sudo` |
-| **All**: Stale cache | Delete build folder: `rm -rf build/` and retry |
+| :--- | :--- |
+| **Windows**: Build fails | Install VS Build Tools and Win11 SDK |
+| **macOS**: `omp.h` not found | See **macOS OpenMP Fix** section below |
+| **macOS**: Architecture | `python -c "import platform; print(platform.machine())"` |
+| **Linux**: Permissions | Use `chmod +x` or `sudo` |
+| **All**: Stale cache | Delete `build/` folder and retry |
+| **Windows**: Unicode Path | `install_windows.bat` handles this automatically |
 
 #### macOS OpenMP Fix
 
 If you get `fatal error: 'omp.h' file not found`:
 
 ```bash
-# Set environment variables to use conda's OpenMP
 export CC="$CONDA_PREFIX/bin/clang"
 export CXX="$CONDA_PREFIX/bin/clang++"
 export CPPFLAGS="-I$CONDA_PREFIX/include"
-export LDFLAGS="-L$CONDA_PREFIX/lib"
-
-# Then reinstall
+export LDFLAGS="-L$CONDA_PREFIX/lib -lomp"
 pip install . --no-build-isolation
 ```
 
-</details>
+---
 
-## GUI Usage
+## Samples and Tests
 
-OpenLPT provides a graphical user interface for easier interaction with the tracking pipeline.
+Please see the sample format of configuration files, camera files and image files in `/test/test_STB` or `/test/test_STB_Bubble`.
 
-### Launch the GUI
-```bash
-conda activate OpenLPT
-python GUI.py
+To run the sample:
+1. Open OpenLPT GUI.
+2. Load the project configuration from the sample folders.
+3. Click 'Run tracking'.
+
+---
+
+## Citation
+
+If you use **OpenLPT** in your research, please cite our work:
+
+```bibtex
+@software{OpenLPT_GUI,
+  author = {JHU Neural Interfaces Lab},
+  title = {OpenLPT: Open-source Lagrangian Particle Tracking GUI},
+  url = {https://github.com/JHU-NI-LAB/OpenLPT_GUI},
+  year = {2026},
+}
 ```
 
-The GUI provides modules for:
-- **Camera Calibration**: Wand and plate calibration workflows
-- **Image Preprocessing**: Background subtraction and image enhancement
-- **Tracking Settings**: Configure tracking parameters
-- **Tracking**: Run the tracking algorithm with real-time visualization
-- **Results**: View and export tracking results
+---
 
-## Installation - CPP Version
-Users who want to install the pure cpp version can refer to the file [README_CPP.md](README_CPP.md)
+## Contact & Contribution
 
-## Contribute
-
-- Issue Tracker: 
-- Source Code: [OpenLPT 2.0](https://github.com/clockj/OpenLPT.git)
-- We are happy that you enjoy our code. At the same time, we would like you give us the credits by citing the following reference in your work:
-
-    - Tan, S., Salibindla, A., Masuk, A.U.M. and Ni, R., 2020. Introducing OpenLPT: new method of removing ghost particles and high-concentration particle shadow tracking. Experiments in Fluids, 61(2), p.47.
-    
-    - Tan, S., Zhong, S. and Ni, R., 2023. 3D Lagrangian tracking of polydispersed bubbles at high image densities. Experiments in Fluids, 64(4), p.85.
-
-## Support
-
-If you are having issues, please let me know.
-I have a mailing list located at: szhong12@jhu.edu or tanshiyong84@gmail.com
-
-
-## License
-
-This repository contains a mix of original code (open-source under the license in `LICENSE`)
-and MATLAB Coder–generated files under a MathWorks **Academic License**.
-
-The following paths contain code that was generated by MATLAB Coder and is **NOT** covered by
-the open-source license of this repository. These files are provided for **ACADEMIC INTERNAL
-OPERATIONS ONLY** (teaching, academic research, and course requirements). **Government,
-commercial, or other organizational use is NOT permitted**.
-
-Restricted (MATLAB Coder–generated) paths:
-- /src/srcObject/BubbleCenterAndSizeByCircle
-- /src/srcObject/BubbleCenterAndSizeByCircle/CircleIdentifier.cpp
-- /src/srcObject/BubbleResize
-- /inc/libObject/BubbleCenterAndSizeByCircle
-- /inc/libObject/CircleIdentifier.h
-- /inc/libObject/BubbleResize
-
-Requirements and conditions for the above paths:
-- Do **not** modify or remove the “Academic License” header comments in those files.
-- These files are **not** sublicensed under the repository’s open-source license (see `LICENSE`).
-- If you redistribute this repository, you must keep this `NOTICE` file together with the
-  original Academic License headers in the generated files.
-- If you need to regenerate or modify the generated code, you must hold and comply with a valid
-  MathWorks MATLAB Coder license; usage remains restricted to academic internal operations.
-
-All **other** files outside the paths listed above are original work and are distributed under
-the open-source license stated in `LICENSE`.
-
+- **Issues**: Please report bugs or request features via [GitHub Issues](https://github.com/JHU-NI-LAB/OpenLPT_GUI/issues).
+- **Organization**: Neural Interfaces Lab, Johns Hopkins University.
+- **Support**: If you find this tool helpful, please give us a ⭐ on GitHub!
