@@ -98,6 +98,31 @@ mamba install -c conda-forge --file requirements.txt
 pip install . --no-build-isolation
 ```
 
+#### Troubleshooting
+
+| Problem | Solution |
+|:--------|:---------|
+| **Windows**: Build fails | Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++" |
+| **macOS**: `omp.h` not found | See macOS OpenMP fix below |
+| **macOS**: Wrong architecture | Ensure your conda env matches your CPU: `python -c "import platform; print(platform.machine())"` |
+| **Linux**: Permission denied | Run `chmod +x` on the script, or use `sudo` |
+| **All**: Stale cache | Delete build folder: `rm -rf build/` and retry |
+
+#### macOS OpenMP Fix
+
+If you get `fatal error: 'omp.h' file not found`:
+
+```bash
+# Set environment variables to use conda's OpenMP
+export CC="$CONDA_PREFIX/bin/clang"
+export CXX="$CONDA_PREFIX/bin/clang++"
+export CPPFLAGS="-I$CONDA_PREFIX/include"
+export LDFLAGS="-L$CONDA_PREFIX/lib"
+
+# Then reinstall
+pip install . --no-build-isolation
+```
+
 </details>
 
 ## GUI Usage
