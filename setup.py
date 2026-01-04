@@ -72,7 +72,17 @@ class CMakeBuild(build_ext):
 
         else:
             cmake_args += [f"-DCMAKE_BUILD_TYPE={cfg}", "-DCMAKE_POSITION_INDEPENDENT_CODE=ON"]
-            # Don't pass bare -j, ninja will auto-detect parallelism
+            
+            # [macOS] Help CMake find Homebrew's libomp
+            if platform.system() == "Darwin":
+                try:
+                    brew_prefix = subprocess.check_output(["brew", "--prefix"], text=True).strip()
+                    libomp_dir = Path(brew_prefix) / "opt" / "libomp"
+                    if libomp_dir.exists():
+                        cmake_args += [f"-DOpenMP_ROOT={libomp_dir}"]
+                except Exception:
+                    # Fail silently if brew is not available (though it should be on GitHub Actions)
+                    pass
 
         build_temp = Path(self.build_temp).resolve()
         
