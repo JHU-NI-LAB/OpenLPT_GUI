@@ -1,17 +1,12 @@
 # setup.py — build the CMake-based extension "openlpt" using pip-installed pybind11
 import os, sys, platform, subprocess
 from pathlib import Path
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 
 # 关键：作为“构建时依赖”，确保 pip 会在构建前装好 pybind11
-# 更推荐在 pyproject.toml 里声明（见文末备忘）；这里只是运行时兜底 import。
-try:
-    import pybind11
-    PYBIND11_DIR = pybind11.get_cmake_dir()
-except Exception as e:
-    print("ERROR: pybind11 is required. Install with: python -m pip install pybind11")
-    raise
+# 现在我们已经在 pyproject.toml 里显式声明了 pybind11，
+# 所以 setup.py 顶层不再需要强制 import，可以等真正 build 时再加载。
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
@@ -33,13 +28,20 @@ class CMakeBuild(build_ext):
             self.build_extension(ext)
 
     def build_extension(self, ext):
+        try:
+            import pybind11
+            pybind11_dir = pybind11.get_cmake_dir()
+        except ImportError:
+            print("ERROR: pybind11 is required at build time.")
+            sys.exit(1)
+
         extdir = Path(self.get_ext_fullpath(ext.name)).parent.resolve()
         cfg = "Debug" if self.debug else "Release"
 
         cmake_args = [
             f"-DPYOPENLPT=ON",
             f"-DPython_EXECUTABLE={sys.executable}",
-            f"-Dpybind11_DIR={PYBIND11_DIR}",
+            f"-Dpybind11_DIR={pybind11_dir}",
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}",
             "-DOPENLPT_PYBIND11_PROVIDER=pip",
         ]
@@ -100,23 +102,56 @@ class CMakeBuild(build_ext):
         print(f"[setup.py] CMake Args: {cmake_args}")
         subprocess.check_call(["cmake", ext.sourcedir] + cmake_args, cwd=build_temp)
         subprocess.check_call(["cmake", "--build", "."] + build_args, cwd=build_temp)
+# 获取版本号 (避开 import 以兼容构建环境)
+version_info = {}
+with open("_version.py", encoding="utf-8") as f:
+    exec(f.read(), version_info)
+__version__ = version_info["__version__"]
 
-from _version import __version__
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name="openlpt",
     version=__version__,
-    description="OpenLPT Python bindings",
-    author="Shiyong Tan, Shijie Zhong",
+    description="Open-source Lagrangian Particle Tracking (LPT) with GUI and CLI",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author="JHU Ni Research Lab",
     author_email="szhong12@jhu.edu",
+    url="https://github.com/Sinchy/pyOpenLPT",
+    license="MIT",
     ext_modules=[CMakeExtension("pyopenlpt", sourcedir=".")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     install_requires=[
         "numpy>=1.16.0",
         "pandas>=1.0.0",
-        "pybind11>=2.10"  # 运行时/编译时都需要
+        "pybind11>=2.10",
+        "PySide6>=6.6.0",
+        "qtawesome>=1.3.0",
+        "scipy>=1.11.0",
+        "opencv-python>=4.8.0",
+        "scikit-learn>=1.0.0",
+        "numba>=0.60.0",
+        "matplotlib>=3.7.0",
+        "requests>=2.31.0",
     ],
-    packages=[],
+    py_modules=["openlpt", "_version"],
+    packages=find_packages(),
     include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "openlpt = openlpt:main",
+            "openlpt-gui = openlpt:launch_gui",
+        ],
+    },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Programming Language :: C++",
+        "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Physics",
+        "Topic :: Scientific/Engineering :: Visualization",
+    ],
+    python_requires=">=3.10",
 )

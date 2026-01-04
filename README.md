@@ -20,30 +20,27 @@
 
 ## Quick Start
 
-Look how easy it is to use:
-
 ### 1. Graphical User Interface (GUI)
 ```bash
-# Activate environment and launch the interactive GUI
-conda activate OpenLPT
-python GUI.py
+# Launch the interactive GUI from any terminal
+openlpt-gui
 ```
 
 ### 2. Command Line Interface (CLI)
 ```bash 
-# Run STB tracking directly
-${code_path}/build/Release/OpenLPT.exe {your configuration file path}
+# Run STB tracking directly with a config file
+openlpt path/to/config.txt
 ```
 
 ### 3. Python API
 ```python
-import pyopenlpt as lpt
+import openlpt
 
-# Redirect std::cout to python console
-redirector = lpt.PythonStreamRedirector() 
+# Load and run tracking programmatically
+openlpt.run('path/to/config.txt')
 
-config_file = 'path/to/config.txt'
-lpt.run(config_file)
+# Or launch GUI from within a script
+openlpt.launch_gui()
 ```
 
 ---
@@ -91,10 +88,10 @@ We provide automated scripts that set up everything for you (including Conda, en
         bash install_linux.sh
         ```
 
-3.  **Run the GUI**:
+3.  **Launch the GUI**:
     After installation, simply run:
     ```bash
-    python GUI.py
+    openlpt-gui
     ```
 
 <details>
@@ -106,18 +103,15 @@ If you prefer to set up the environment manually:
     - [Miniforge](https://github.com/conda-forge/miniforge) or [Anaconda](https://www.anaconda.com/)
     - C++ Compiler (Visual Studio 2022 for Windows, Clang for macOS/Linux)
 
-2.  **Create Environment and Install**:
+1.  **Create Environment and Install**:
 
     ```bash
     # Create environment
     conda create -n OpenLPT python=3.10
     conda activate OpenLPT
 
-    # Install dependencies
-    mamba install -c conda-forge --file requirements.txt
-
     # Build and install the package
-    pip install . --no-build-isolation
+    pip install .
     ```
 
 #### Troubleshooting
@@ -129,7 +123,7 @@ If you prefer to set up the environment manually:
 | **macOS**: Architecture | `python -c "import platform; print(platform.machine())"` |
 | **Linux**: Permissions | Use `chmod +x` or `sudo` |
 | **All**: Stale cache | Delete `build/` folder and retry |
-| **Windows**: Unicode Path | `install_windows.bat` handles this automatically |
+| **Installation**: Build isolation | If compilation fails due to network, try `pip install . --no-build-isolation` |
 
 #### macOS OpenMP Fix
 
@@ -140,7 +134,7 @@ export CC="$CONDA_PREFIX/bin/clang"
 export CXX="$CONDA_PREFIX/bin/clang++"
 export CPPFLAGS="-I$CONDA_PREFIX/include"
 export LDFLAGS="-L$CONDA_PREFIX/lib -lomp"
-pip install . --no-build-isolation
+pip install -e .
 ```
 
 </details>

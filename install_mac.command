@@ -28,6 +28,16 @@ if ! xcode-select -p &> /dev/null; then
 else
     echo "[OK] Xcode Command Line Tools found."
 fi
+
+# --- libomp (OpenMP) Check ---
+echo ""
+echo "[0.7/4] Checking for libomp (OpenMP Support)..."
+if ! command -v brew &> /dev/null; then
+    echo "[INFO] Homebrew not found. We will rely on Conda for OpenMP."
+elif ! brew list libomp &> /dev/null; then
+    echo "[INFO] libomp not found via brew. Recommending: brew install libomp"
+    # Optional: brew install libomp
+fi
 # --------------------------------------
 
 cd "$(dirname "$0")"
@@ -96,12 +106,20 @@ rm -rf build/
 rm -rf _skbuild/  # just in case
 
 # 2. Set environment variables that CMake respects automatically
-export CPPFLAGS="-I$CONDA_PREFIX/include $CPPFLAGS"
-export CXXFLAGS="-I$CONDA_PREFIX/include $CXXFLAGS"
-export CFLAGS="-I$CONDA_PREFIX/include $CFLAGS"
-export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib $LDFLAGS"
+# If brew libomp exists, it's usually more reliable
+if command -v brew &> /dev/null && [ -d "$(brew --prefix libomp)" ]; then
+    LIBOMP_PATH=$(brew --prefix libomp)
+    export OpenMP_ROOT="$LIBOMP_PATH"
+    export LDFLAGS="-L$LIBOMP_PATH/lib -Wl,-rpath,$LIBOMP_PATH/lib $LDFLAGS"
+    export CPPFLAGS="-I$LIBOMP_PATH/include $CPPFLAGS"
+    export CXXFLAGS="-I$LIBOMP_PATH/include $CXXFLAGS"
+else
+    export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib $LDFLAGS"
+    export CPPFLAGS="-I$CONDA_PREFIX/include $CPPFLAGS"
+    export CXXFLAGS="-I$CONDA_PREFIX/include $CXXFLAGS"
+fi
 
-echo "Using Include Path: $CONDA_PREFIX/include"
+echo "Environment configured for OpenMP."
 
 echo ""
 echo "[4/4] Installing OpenLPT..."

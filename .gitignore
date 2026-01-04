@@ -23,6 +23,12 @@ dist/
 *.egg-info/
 __pycache__/
 *.pyc
+*.pyd
+*.so
+*.dylib
+*.sln
+*.vcxproj
+*.filters
 
 # ignore all __pycache__ directories
 /**/__pycache__/
