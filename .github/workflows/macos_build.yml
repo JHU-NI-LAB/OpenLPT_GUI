@@ -1,0 +1,47 @@
+name: macOS Compatibility Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  check-macos-build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install System Dependencies
+      run: |
+        brew install cmake libomp
+
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install setuptools wheel
+        # macOS also needs opencv-python
+        sed -i '' 's/opencv/opencv-python/g' requirements.txt
+        python -m pip install -r requirements.txt
+
+    - name: Build and Install OpenLPT
+      run: |
+        # macOS system Clang needs help finding brew's libomp
+        LIBOMP_PATH=$(brew --prefix libomp)
+        export OpenMP_ROOT=$LIBOMP_PATH
+        export LDFLAGS="-L$LIBOMP_PATH/lib -Wl,-rpath,$LIBOMP_PATH/lib"
+        export CPPFLAGS="-I$LIBOMP_PATH/include"
+        export CXXFLAGS="-I$LIBOMP_PATH/include"
+        
+        pip install . -v --no-build-isolation
+
+    - name: Verify Import
+      run: |
+        python -c "import pyopenlpt; print('Successfully imported pyopenlpt on macOS!')"

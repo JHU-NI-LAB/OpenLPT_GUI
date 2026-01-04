@@ -85,6 +85,11 @@ We provide automated scripts that set up everything for you (including Conda, en
         ```bash
         bash install_mac.command
         ```
+    -   **Linux**: 
+        Run in terminal:
+        ```bash
+        bash install_linux.sh
+        ```
 
 3.  **Run the GUI**:
     After installation, simply run:
