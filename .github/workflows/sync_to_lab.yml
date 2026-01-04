@@ -44,15 +44,24 @@ jobs:
           if [[ "$TAG_NAME" != "" ]]; then
             echo "Syncing Release for: $TAG_NAME"
             
-            # 下载原 Release 附件
-            mkdir -p ./release_assets
-            gh release download "$TAG_NAME" --dir ./release_assets --repo "$GITHUB_REPOSITORY" --clobber || echo "No assets to download."
+            # 检查原仓库是否存在 Release 对象
+            if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              echo "Release found on source repo. Mirroring metadata and assets..."
+              # 下载原 Release 附件
+              mkdir -p ./release_assets
+              gh release download "$TAG_NAME" --dir ./release_assets --repo "$GITHUB_REPOSITORY" --clobber || echo "No assets to download."
+              
+              # 获取原 Release 信息
+              REL_TITLE=$(gh release view "$TAG_NAME" --json name -q .name --repo "$GITHUB_REPOSITORY")
+              REL_BODY=$(gh release view "$TAG_NAME" --json body -q .body --repo "$GITHUB_REPOSITORY")
+            else
+              echo "No Release found on source repo for $TAG_NAME (only tag exists). Using default metadata."
+              REL_TITLE="$TAG_NAME"
+              REL_BODY="Release for $TAG_NAME"
+            fi
             
-            # 获取原 Release 信息
-            REL_TITLE=$(gh release view "$TAG_NAME" --json name -q .name --repo "$GITHUB_REPOSITORY")
-            REL_BODY=$(gh release view "$TAG_NAME" --json body -q .body --repo "$GITHUB_REPOSITORY")
-            
-            # 检查是否有附件需要上传 (处理 v2.1.0 这种没有附件的情况)
+            # 在目标仓库创建/更新 Release
+            # 检查是否有附件需要上传
             if [ "$(ls -A ./release_assets 2>/dev/null)" ]; then
               echo "Uploading assets..."
               gh release create "$TAG_NAME" ./release_assets/* \
@@ -61,7 +70,7 @@ jobs:
                 --notes "$REL_BODY" \
                 --verify-tag || gh release edit "$TAG_NAME" --notes "$REL_BODY" --title "$REL_TITLE" --repo "JHU-NI-LAB/OpenLPT_GUI"
             else
-              echo "No assets found, creating/updating metadata only."
+              echo "Creating/updating release metadata only."
               gh release create "$TAG_NAME" \
                 --repo "JHU-NI-LAB/OpenLPT_GUI" \
                 --title "$REL_TITLE" \

@@ -7,19 +7,28 @@ from pathlib import Path
 def run_auto_update(project_root: Path):
     """
     Generate an update script and execute it in a new terminal window.
-    Then exit the current application.
+    Detects if this is a Git-based install or a Pip-based install.
     """
     system = platform.system()
     project_root = project_root.resolve()
     
+    # Check if this is a Git repository
+    is_git = (project_root / ".git").exists()
+    
     if system == "Windows":
-        _run_windows_update(project_root)
+        if is_git:
+            _run_windows_git_update(project_root)
+        else:
+            _run_windows_pip_update()
     elif system == "Darwin":
-        _run_mac_update(project_root)
+        if is_git:
+            _run_mac_git_update(project_root)
+        else:
+            _run_mac_pip_update()
     else:
         print(f"[AutoUpdate] Check not implemented for {system}")
 
-def _run_windows_update(root: Path):
+def _run_windows_git_update(root: Path):
     """
     Create batch file and run it.
     """
@@ -141,7 +150,49 @@ pause
     except Exception as e:
         print(f"[AutoUpdate] Failed to start update: {e}")
 
-def _run_mac_update(root: Path):
+def _run_windows_pip_update():
+    """
+    Create a temporary batch file to update via pip.
+    """
+    import tempfile
+    temp_dir = Path(tempfile.gettempdir())
+    script_path = temp_dir / "update_openlpt_pip.bat"
+    
+    # Use sys.executable to ensure we use the same python environment
+    python_exe = sys.executable
+    
+    content = f"""@echo off
+title OpenLPT Pip Updater
+echo ==========================================
+echo       OpenLPT Pip Auto-Updater
+echo ==========================================
+echo.
+echo [1/1] Updating OpenLPT via Pip...
+"{python_exe}" -m pip install --upgrade "openlpt[gui]"
+if %errorlevel% neq 0 (
+    echo [Error] Pip update failed.
+    pause
+    exit /b %errorlevel%
+)
+
+echo.
+echo ==========================================
+echo       Update Successful! 
+echo ==========================================
+echo Please restart OpenLPT manually.
+pause
+"""
+    try:
+        with open(script_path, "w", encoding='utf-8') as f:
+            f.write(content)
+            
+        print(f"[AutoUpdate] Created pip update script at {script_path}")
+        os.system(f'start "OpenLPT Updater" "{script_path}"')
+        sys.exit(0)
+    except Exception as e:
+        print(f"[AutoUpdate] Failed to start pip update: {e}")
+
+def _run_mac_git_update(root: Path):
     """
     Create shell script and run it via Terminal.app
     """
@@ -218,3 +269,44 @@ read -p "Press enter to close..."
         
     except Exception as e:
         print(f"[AutoUpdate] Failed to start update: {e}")
+
+def _run_mac_pip_update():
+    """
+    Create a temporary shell script to update via pip.
+    """
+    import tempfile
+    temp_dir = Path(tempfile.gettempdir())
+    script_path = temp_dir / "update_openlpt_pip.command"
+    
+    python_exe = sys.executable
+    
+    content = f"""#!/bin/bash
+echo "=========================================="
+echo "      OpenLPT Pip Auto-Updater"
+echo "=========================================="
+echo ""
+echo "[1/1] Updating OpenLPT via Pip..."
+"{python_exe}" -m pip install --upgrade "openlpt[gui]"
+if [ $? -ne 0 ]; then
+    echo "[Error] Pip update failed."
+    read -p "Press enter to exit"
+    exit 1
+fi
+
+echo ""
+echo "=========================================="
+echo "      Update Successful!"
+echo "=========================================="
+echo "Please restart OpenLPT manually."
+read -p "Press enter to close..."
+"""
+    try:
+        with open(script_path, "w", encoding='utf-8') as f:
+            f.write(content)
+        os.chmod(script_path, 0o755)
+        
+        print(f"[AutoUpdate] Created pip update script at {script_path}")
+        subprocess.call(["open", str(script_path)])
+        sys.exit(0)
+    except Exception as e:
+        print(f"[AutoUpdate] Failed to start pip update: {e}")

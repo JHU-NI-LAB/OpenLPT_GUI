@@ -830,9 +830,10 @@ class TrackingView(QWidget):
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         exe_path = os.path.join(base_dir, "build", "Release", "OpenLPT.exe")
         
+        use_python_module = False
         if not os.path.exists(exe_path):
-            self._append_log(f"[Error] Executable not found at {exe_path}\n")
-            return
+            self._append_log(f"[Info] Managed binary not found at {exe_path}. Falling back to python module.\n")
+            use_python_module = True
 
         # Prepare log file
         log_path = os.path.join(proj_dir, "log.txt")
@@ -840,7 +841,10 @@ class TrackingView(QWidget):
             self.log_file = open(log_path, "w")
             self.log_text.clear()
             self.vis_tabs.setCurrentWidget(self.log_text)
-            self._append_log(f"[Info] Running: {exe_path} {config_path}\n")
+            if use_python_module:
+                 self._append_log(f"[Info] Running: {sys.executable} -m openlpt {config_path}\n")
+            else:
+                 self._append_log(f"[Info] Running: {exe_path} {config_path}\n")
             self._append_log(f"[Info] Logging to: {log_path}\n\n")
         except Exception as e:
             self._append_log(f"[Error] Failed to create log file: {e}\n")
@@ -849,7 +853,12 @@ class TrackingView(QWidget):
         # Start process
         self.run_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-        self.process.start(exe_path, [config_path])
+        if use_python_module:
+            # Python -m openlpt <config>
+            self.process.start(sys.executable, ["-m", "openlpt", config_path])
+        else:
+            # Standalone .exe <config>
+            self.process.start(exe_path, [config_path])
 
     def _check_project_files(self, proj_dir):
         """Verify existence of mandatory files/folders by parsing config.txt."""
