@@ -42,12 +42,12 @@ Homepage = "https://github.com/Sinchy/pyOpenLPT"
 openlpt = "openlpt:main"
 openlpt-gui = "openlpt:launch_gui"
 
+[tool.setuptools]
+py-modules = ["openlpt", "_version"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["modules*", "gui*", "utils*"]
-
-[tool.setuptools.py-modules]
-modules = ["openlpt", "_version"]
 
 [tool.cibuildwheel]
 # Build only 64-bit platforms
