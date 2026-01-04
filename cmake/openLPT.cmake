@@ -213,7 +213,7 @@ add_library(Shake STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/Shake.cpp")
 openlpt_public_includes(Shake)
 target_link_libraries(Shake PUBLIC
   BubbleRefImg CircleIdentifier
-  StereoMatch OTF ObjectInfo Camera myMath Matrix
+  OTF ObjectInfo Camera myMath Matrix
   OpenMP::OpenMP_CXX
   OpenLPT::nanoflann            
 )
@@ -224,7 +224,7 @@ openlpt_apply_warnings(Shake)
 add_library(IPR STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/IPR.cpp")
 openlpt_public_includes(IPR)
 target_link_libraries(IPR PUBLIC
-  BubbleRefImg
+  BubbleRefImg StereoMatch ObjectFinder Shake
   Camera myMath Matrix OpenMP::OpenMP_CXX
 )
 openlpt_apply_warnings(IPR)
@@ -245,7 +245,7 @@ openlpt_apply_warnings(Track)
 add_library(STB STATIC "${PROJECT_SOURCE_DIR}/src/srcSTB/STB.cpp")
 openlpt_public_includes(STB)
 target_link_libraries(STB PUBLIC
-  StereoMatch OTF VSC Shake IPR PredField Track
+  IPR Shake PredField VSC Track
   ObjectInfo ObjectFinder Camera myMath Matrix
   OpenMP::OpenMP_CXX
 )
