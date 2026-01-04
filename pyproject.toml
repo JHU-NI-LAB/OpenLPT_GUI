@@ -54,4 +54,4 @@ before-all = "yum install -y libomp-devel || apt-get update && apt-get install -
 
 [tool.cibuildwheel.macos]
 before-build = "brew install libomp"
-environment = { LDFLAGS="-L$(brew --prefix libomp)/lib", CPPFLAGS="-I$(brew --prefix libomp)/include", MACOSX_DEPLOYMENT_TARGET="11.0" }
+environment = { LDFLAGS="-L$(brew --prefix libomp)/lib", CPPFLAGS="-I$(brew --prefix libomp)/include", MACOSX_DEPLOYMENT_TARGET="15.0" }
