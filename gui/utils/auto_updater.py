@@ -3,6 +3,19 @@ import os
 import platform
 import subprocess
 from pathlib import Path
+from typing import Optional
+
+def find_git_root(start_path: Path) -> Optional[Path]:
+    """Search upwards for .git directory."""
+    current = start_path.resolve()
+    # If we are in a subfolder like 'gui', find the root
+    for _ in range(5):
+        if (current / ".git").exists():
+            return current
+        if current.parent == current:
+            break
+        current = current.parent
+    return None
 
 def run_auto_update(project_root: Path):
     """
@@ -10,19 +23,18 @@ def run_auto_update(project_root: Path):
     Detects if this is a Git-based install or a Pip-based install.
     """
     system = platform.system()
-    project_root = project_root.resolve()
     
-    # Check if this is a Git repository
-    is_git = (project_root / ".git").exists()
+    # Try to find Git root
+    git_root = find_git_root(project_root)
     
     if system == "Windows":
-        if is_git:
-            _run_windows_git_update(project_root)
+        if git_root:
+            _run_windows_git_update(git_root)
         else:
             _run_windows_pip_update()
     elif system == "Darwin":
-        if is_git:
-            _run_mac_git_update(project_root)
+        if git_root:
+            _run_mac_git_update(git_root)
         else:
             _run_mac_pip_update()
     else:
@@ -71,7 +83,7 @@ echo ==========================================
 echo       OpenLPT Auto-Updater
 echo ==========================================
 echo.
-cd /d "{root}"
+cd /d "%~dp0"
 
 echo [0/4] Restoring environment variables...
 {env_block}
@@ -167,10 +179,17 @@ echo ==========================================
 echo       OpenLPT Pip Auto-Updater
 echo ==========================================
 echo.
-echo [1/1] Updating OpenLPT via Pip...
-"{python_exe}" -m pip install --upgrade "openlpt[gui]"
+echo [1/2] Checking current PyPI index...
+"{python_exe}" -m pip index versions openlpt
+
+echo.
+echo [2/2] Updating OpenLPT via Pip (forcing no-cache)...
+"{python_exe}" -m pip install --upgrade "openlpt[gui]>=2.1.2" --no-cache-dir
 if %errorlevel% neq 0 (
-    echo [Error] Pip update failed.
+    echo.
+    echo [Error] Pip update failed. 
+    echo Possible cause: The new version might still be building on GitHub Actions.
+    echo Please wait 5-10 minutes after a release before updating.
     pause
     exit /b %errorlevel%
 )
@@ -179,6 +198,7 @@ echo.
 echo ==========================================
 echo       Update Successful! 
 echo ==========================================
+echo Local files have been updated to the latest version found on PyPI.
 echo Please restart OpenLPT manually.
 pause
 """
@@ -203,7 +223,7 @@ echo "=========================================="
 echo "      OpenLPT Auto-Updater"
 echo "=========================================="
 echo ""
-cd "{root}"
+cd "$(dirname "$0")"
 
 echo ""
 echo "NOTE: If the process pauses below, please type your password (SSH passphrase or Git account password) and press Enter."
@@ -285,10 +305,17 @@ echo "=========================================="
 echo "      OpenLPT Pip Auto-Updater"
 echo "=========================================="
 echo ""
-echo "[1/1] Updating OpenLPT via Pip..."
-"{python_exe}" -m pip install --upgrade "openlpt[gui]"
+echo "[1/2] Checking current PyPI index..."
+"{python_exe}" -m pip index versions openlpt
+
+echo ""
+echo "[2/2] Updating OpenLPT via Pip (forcing no-cache)..."
+"{python_exe}" -m pip install --upgrade "openlpt[gui]>=2.1.2" --no-cache-dir
 if [ $? -ne 0 ]; then
+    echo ""
     echo "[Error] Pip update failed."
+    echo "Possible cause: The new version might still be building on GitHub Actions."
+    echo "Please wait 5-10 minutes after a release before updating."
     read -p "Press enter to exit"
     exit 1
 fi
@@ -297,6 +324,7 @@ echo ""
 echo "=========================================="
 echo "      Update Successful!"
 echo "=========================================="
+echo "Local files have been updated to the latest version found on PyPI."
 echo "Please restart OpenLPT manually."
 read -p "Press enter to close..."
 """

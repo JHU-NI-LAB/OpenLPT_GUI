@@ -20,9 +20,13 @@
 
 ## Quick Start
 
+> [!TIP]
+> Ensure you have activated your environment before running these commands: `conda activate OpenLPT`
+> (On **Windows**, we recommend using **Command Prompt (CMD)** as PowerShell may have execution policy restrictions).
+
 ### 1. Graphical User Interface (GUI)
 ```bash
-# Launch the interactive GUI from any terminal
+# Launch the interactive GUI from any terminal (CMD recommended on Windows)
 openlpt-gui
 ```
 

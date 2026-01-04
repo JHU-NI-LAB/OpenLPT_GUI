@@ -152,6 +152,7 @@ if errorlevel 1 (
         echo Initializing Conda...
         call "%UserProfile%\Miniforge3\Scripts\activate.bat"
         call conda init cmd.exe
+        call conda init powershell
         
         echo [SUCCESS] Miniforge3 installed!
     )
