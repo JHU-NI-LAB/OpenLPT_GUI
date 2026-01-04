@@ -159,7 +159,7 @@ openlpt_apply_warnings(CircleIdentifier)
 file(GLOB BBRESIZE_SRCS "${PROJECT_SOURCE_DIR}/src/srcObject/BubbleResize/*.cpp")
 add_library(BubbleResize STATIC ${BBRESIZE_SRCS})
 openlpt_public_includes(BubbleResize)
-target_link_libraries(BubbleResize PUBLIC ObjectInfo myMath)
+target_link_libraries(BubbleResize PUBLIC ObjectInfo myMath OpenMP::OpenMP_CXX)
 openlpt_apply_warnings(BubbleResize)
 
 # BubbleRefImg (headers in inc/libObject, source in src/srcObject)
@@ -169,6 +169,7 @@ target_link_libraries(BubbleRefImg PUBLIC
   BubbleResize
   ObjectInfo
   myMath       # Matrix is header-only; include via PUBLIC includes
+  OpenMP::OpenMP_CXX
 )
 openlpt_apply_warnings(BubbleRefImg)
 
