@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openlpt"
-version = "2.1.1"
+version = "2.1.2"
 description = "Open-source Lagrangian Particle Tracking (LPT) with GUI and CLI"
 readme = "README.md"
 authors = [{ name = "JHU Ni Research Lab", email = "szhong12@jhu.edu" }]
@@ -48,6 +48,11 @@ py-modules = ["openlpt", "_version"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["modules*", "gui*", "utils*"]
+
+[tool.setuptools.package-data]
+gui = ["*.qss", "assets/*.png", "docs/**/*.html", "docs/**/*.png", "docs/**/*.css", "docs/**/*.js"]
+modules = ["**/*.html", "**/*.png"]
+"*" = ["*.html", "*.png", "*.qss"]
 
 [tool.cibuildwheel]
 # Build only 64-bit platforms
