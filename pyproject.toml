@@ -48,14 +48,15 @@ include-package-data = true
 version = { attr = "_version.__version__" }
 
 [tool.cibuildwheel]
-# Build only 64-bit platforms for Python 3.10+
+# Build only 64-bit platforms
 skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*", "pp*"]
 test-requires = "pytest"
 test-command = "python -c \"import openlpt; print('OpenLPT imported successfully')\""
 
 [tool.cibuildwheel.linux]
-before-all = "yum install -y libomp-devel || apt-get install -y libomp-dev"
+# Manylinux images usually have yum or dnf. Use a more robust check.
+before-all = "which yum && yum install -y libomp-devel || (which apt-get && apt-get update && apt-get install -y libomp-dev) || echo 'No package manager found'"
 
 [tool.cibuildwheel.macos]
 before-build = "brew install libomp"
-environment = { LDFLAGS="-L$(brew --prefix libomp)/lib", CPPFLAGS="-I$(brew --prefix libomp)/include" }
+environment = { LDFLAGS="-L$(brew --prefix libomp)/lib", CPPFLAGS="-I$(brew --prefix libomp)/include", MACOSX_DEPLOYMENT_TARGET="10.15" }
