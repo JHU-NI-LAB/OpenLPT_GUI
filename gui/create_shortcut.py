@@ -22,18 +22,39 @@ def get_desktop_path():
     else:
         return Path.home() / "Desktop"
 
-def create_windows_shortcut(target_script, icon_path):
-    """Create a Windows .lnk shortcut using win32com (preferred) or PowerShell fallback."""
-    
+def create_windows_shortcut(target, icon_path, is_script=True):
+    """
+    Create a Windows .lnk shortcut.
+    If is_script is True, target is the path to the python script.
+    If is_script is False, target is the name of the executable (pip entry point).
+    """
     python_exe = sys.executable
-    target_path = Path(target_script).resolve()
-    working_dir = target_path.parent.parent  # Project root
     
+    # Determine target and arguments
+    if is_script:
+        target_path = Path(target).resolve()
+        # For scripts, we run: python.exe "path/to/script.py"
+        exe_path = python_exe
+        args = f'"{target_path}"'
+        working_dir = target_path.parent.parent # Root
+    else:
+        # For pip entry points, we point directly to the .exe in the Scripts folder
+        # target is something like 'openlpt-gui'
+        import shutil
+        exe_path = shutil.which(target)
+        if not exe_path:
+             # Fallback: maybe it's in the same folder as python.exe
+             scripts_dir = Path(python_exe).parent / "Scripts"
+             exe_path = str(scripts_dir / f"{target}.exe")
+        
+        args = ""
+        # Working dir can be user home or desktop for pip installs
+        working_dir = get_desktop_path()
+
     # Verify icon and ensure it's .ico for Windows
     if not isinstance(icon_path, Path):
         icon_path = Path(icon_path)
     
-    # Try to get/convert to .ico
     icon_path = ensure_ico_for_windows(icon_path)
     icon_str = str(icon_path.resolve()) if icon_path.exists() else ""
     
@@ -45,24 +66,21 @@ def create_windows_shortcut(target_script, icon_path):
         print(f"Shortcut already exists at {shortcut_path}")
         return 2
     
-    # Use win32com for shortcut creation
     try:
         import win32com.client
         import win32api
     except ImportError:
-        print("[Shortcut] ERROR: pywin32 not installed. Please run: pip install pywin32")
+        print("[Shortcut] ERROR: pywin32 not installed.")
         return -1
     
     try:
-        # Convert to short path (8.3 format) to handle non-ASCII characters
-        # This works for any language (Chinese, Japanese, Korean, Russian, etc.)
         desktop_short = win32api.GetShortPathName(str(desktop))
         shortcut_path_short = desktop_short + "\\OpenLPT.lnk"
         
         shell = win32com.client.Dispatch("WScript.Shell")
         shortcut = shell.CreateShortcut(shortcut_path_short)
-        shortcut.TargetPath = python_exe
-        shortcut.Arguments = f'"{target_path}"'
+        shortcut.TargetPath = str(exe_path)
+        shortcut.Arguments = args
         shortcut.WorkingDirectory = str(working_dir)
         shortcut.Description = "OpenLPT 3D Particle Tracking"
         if icon_str:
@@ -72,7 +90,6 @@ def create_windows_shortcut(target_script, icon_path):
         return 1
     except Exception as e:
         print(f"[Shortcut] ERROR creating shortcut: {e}")
-        print(f"[Shortcut] Target path: {shortcut_path}")
         return -1
             
     # Return 1 for success
@@ -259,28 +276,33 @@ cd "$DIR"
 def check_and_create_shortcut():
     """
     Check if desktop shortcut exists. If not, create it.
-    Returns: True if a new shortcut was created, False otherwise.
+    Detects if this is a script-based run or a pip-installed run.
     """
     try:
-        # Locate gui/main.py relative to this file
         current_dir = Path(__file__).parent
+        icon_path = current_dir / "assets" / "icon.png"
+        system = platform.system()
+        
+        # 1. Detect if we are in a Git/Source environment
+        # Search for main.py (source) or assume entry point (pip)
         target_script = current_dir / "main.py"
         
-        if not target_script.exists():
-            print(f"[Shortcut] Warning: Could not find main.py at {target_script}")
-            return False
-
-        # Locate Icon
-        icon_path = current_dir / "assets" / "icon.png"
-        
-        # Create based on OS
-        system = platform.system()
-        if system == "Windows":
-            return create_windows_shortcut(target_script, icon_path)
-        elif system == "Darwin": # macOS
-            return create_mac_shortcut(target_script, icon_path)
+        if target_script.exists():
+            # Source mode
+            if system == "Windows":
+                return create_windows_shortcut(target_script, icon_path, is_script=True)
+            elif system == "Darwin":
+                return create_mac_shortcut(target_script, icon_path)
         else:
-            return False
+            # Pip mode - use entry point 'openlpt-gui'
+            if system == "Windows":
+                return create_windows_shortcut("openlpt-gui", icon_path, is_script=False)
+            elif system == "Darwin":
+                # For Mac pip, shortcut creation is more complex (App Bundle needed)
+                # But we can try the basic one if implementation exists
+                return create_mac_shortcut(None, icon_path)
+        
+        return False
             
     except Exception as e:
         print(f"[Shortcut] Error: {e}")
