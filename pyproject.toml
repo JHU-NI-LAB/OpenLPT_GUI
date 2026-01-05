@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openlpt"
-version = "2.1.5"
+version = "2.1.6"
 description = "Open-source Lagrangian Particle Tracking (LPT) with GUI and CLI"
 readme = "README.md"
 authors = [{ name = "JHU Ni Research Lab", email = "szhong12@jhu.edu" }]
@@ -27,6 +27,7 @@ dependencies = [
     "numba>=0.60.0",
     "matplotlib>=3.7.0",
     "requests>=2.31.0",
+    "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
