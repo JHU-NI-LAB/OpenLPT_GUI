@@ -26,7 +26,7 @@
 
 ### 1. Graphical User Interface (GUI)
 ```bash
-# Launch the interactive GUI from any terminal (CMD recommended on Windows)
+# Launch the interactive GUI
 openlpt-gui
 ```
 
@@ -38,13 +38,13 @@ openlpt path/to/config.txt
 
 ### 3. Python API
 ```python
-import openlpt
+import openlpt as lpt
 
-# Load and run tracking programmatically
-openlpt.run('path/to/config.txt')
+# Run tracking programmatically
+lpt.run('path/to/config.txt')
 
 # Or launch GUI from within a script
-openlpt.launch_gui()
+lpt.launch_gui()
 ```
 
 ---
@@ -65,7 +65,7 @@ https://github.com/user-attachments/assets/60579007-4f24-4989-8b36-3de2224c9797
 
 ## Installation
 
-### Method 1: One-Click Installation (Recommended)
+### Method 1: One-Click Installation (Recommended for developers)
 
 We provide automated scripts that set up everything for you (including Conda, environment, and dependencies).
 
@@ -98,8 +98,21 @@ We provide automated scripts that set up everything for you (including Conda, en
     openlpt-gui
     ```
 
+### Method 2: Direct Pip Installation (Easiest)
+
+You can install OpenLPT directly from PyPI:
+
+- **For GUI Support (Recommended)**:
+  ```bash
+  pip install "openlpt[gui]"
+  ```
+- **For CLI-only**:
+  ```bash
+  pip install "openlpt"
+  ```
+
 <details>
-<summary><h3>Method 2: Manual Installation (Click to expand)</h3></summary>
+<summary><h3>Method 3: Manual Installation (Click to expand)</h3></summary>
 
 If you prefer to set up the environment manually:
 
