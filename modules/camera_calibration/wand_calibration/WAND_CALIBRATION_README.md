@@ -6,6 +6,9 @@ This document describes the wand calibration algorithm implemented in `wand_cali
 
 The wand calibrator performs multi-camera extrinsic and intrinsic calibration using a 2-point wand of known length (typically 10mm). The algorithm uses bundle adjustment to jointly optimize camera parameters and 3D point positions.
 
+> [!IMPORTANT]
+> **Refractive Interfaces:** The implemented calibration model assumes a homogeneous medium without refractive interfaces. For experiments involving observation windows, it is critical that the cameras are oriented as close to the surface normal (orthogonal) as possible. Furthermore, it is assumed that the paraxial approximation is valid within the reconstructed volume (i.e., small-angle observation) to maintain geometric accuracy.
+
 ---
 
 ## Input Data Format

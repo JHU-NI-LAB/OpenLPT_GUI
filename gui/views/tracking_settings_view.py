@@ -25,6 +25,8 @@ class TrackingSettingsView(QWidget):
         self.calibration_view = calibration_view
         self.preprocessing_view = preprocessing_view
         self.tri_err_3sigma_mm = None # Store for dynamic voxel conversion
+        self.detected_cam_files = [] # Store detected camera filenames (e.g. cam0.txt or vsc_cam1.txt)
+        self.last_project_path = None # Track changes to prevent overwriting manual paths
         self._setup_ui()
     
     def showEvent(self, event):
@@ -538,7 +540,11 @@ class TrackingSettingsView(QWidget):
         """Called when widget is shown. Sync paths and data."""
         super().showEvent(event)
         self._sync_from_preprocessing()
-        self._update_paths()
+        
+        current_proj = self.project_path.text().strip()
+        if current_proj != self.last_project_path:
+            self._update_paths()
+            self.last_project_path = current_proj
         # self._save_camera_params() # Removed: handled by _on_cam_path_changed or manual triggers
         
 
@@ -717,7 +723,13 @@ class TrackingSettingsView(QWidget):
                 if " (" in cam_dir:
                     cam_dir = cam_dir.split(" (")[0]
                 for i in range(n_cams):
-                    f.write(f"{cam_dir}/cam{i}.txt,255\n")
+                    if i < len(self.detected_cam_files):
+                        # Use actual detected filename (e.g. vsc_cam1.txt)
+                        fname = self.detected_cam_files[i]
+                        f.write(f"{cam_dir}/{fname},255\n")
+                    else:
+                        # Fallback if request n_cams > detected files
+                        f.write(f"{cam_dir}/cam{i}.txt,255\n")
                 
                 f.write("# Image File Path\n")
                 img_dir = self.image_path_display.text().strip().replace('\\', '/')
@@ -861,10 +873,11 @@ class TrackingSettingsView(QWidget):
                 
                 has_live_data = True
                 
-        # 2. Find all cam*.txt files
+        # 2. Find all *cam*.txt files (Relaxed check)
         cam_files = []
         if os.path.isdir(cam_dir):
-            cam_files = [f for f in os.listdir(cam_dir) if f.startswith("cam") and f.endswith(".txt")]
+            # Look for any .txt file with "cam" in the name (e.g. vsc_cam1.txt, cam0.txt)
+            cam_files = [f for f in os.listdir(cam_dir) if "cam" in f.lower() and f.endswith(".txt")]
         
         # 3. If no files found and no live data to export, show warning
         if not cam_files and not has_live_data:
@@ -873,9 +886,12 @@ class TrackingSettingsView(QWidget):
             
         def natural_key(string_):
             return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
+        
+        # Sort and store detected files for config generation
+        self.detected_cam_files = sorted(cam_files, key=natural_key)
             
         cams_data = []
-        for cf in sorted(cam_files, key=natural_key):
+        for cf in self.detected_cam_files:
             data = self._parse_cam_file(os.path.join(cam_dir, cf))
             if data:
                 cams_data.append(data)

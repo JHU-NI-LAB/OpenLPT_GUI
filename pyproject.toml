@@ -7,7 +7,7 @@ name = "openlpt"
 version = "2.1.6"
 description = "Open-source Lagrangian Particle Tracking (LPT) with GUI and CLI"
 readme = "README.md"
-authors = [{ name = "JHU Ni Research Lab", email = "szhong12@jhu.edu" }]
+authors = [{ name = "Shiyong Tan @ JHU Ni Research Lab", email = "tanshiyong84@gmail.com" }]
 license = { text = "MIT" }
 requires-python = ">=3.10"
 classifiers = [
@@ -18,8 +18,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 dependencies = [
-    "numpy>=1.20.0",
-    "pandas>=1.0.0",
+    "numpy>=2.2.0",
+    "pandas>=2.2.2",
     "pybind11>=2.10",
     "scipy>=1.11.0",
     "opencv-python>=4.8.0",
@@ -27,6 +27,7 @@ dependencies = [
     "numba>=0.60.0",
     "matplotlib>=3.7.0",
     "requests>=2.31.0",
+    "pycine>=0.4.6",
     "pywin32>=306; sys_platform == 'win32'",
 ]
 

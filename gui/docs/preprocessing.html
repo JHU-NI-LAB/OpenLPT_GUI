@@ -66,6 +66,15 @@
             border: 1px solid #444;
             margin: 10px 0;
         }
+
+        .tip-block {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background-color: #333333;
+            border-left: 4px solid #ff9800;
+            color: #f0f0f0;
+            font-size: 0.95em;
+        }
     </style>
 </head>
 
@@ -124,6 +133,11 @@
                 <li><strong>Processed</strong>: Result after background subtraction and intensity adjustment.</li>
                 <li><strong>Background</strong>: The computed static background image.</li>
             </ul>
+            <div class="tip-block">
+                <strong>Tip:</strong> Check the intensity difference between particles and background noise. Based on
+                this difference, set an appropriate <code>Tracer Intensity Threshold</code> in <em>Settings →
+                    Object</em>. This helps Tracking identify and reconstruct particles more efficiently.
+            </div>
         </div>
 
         <div class="step-block">

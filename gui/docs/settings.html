@@ -79,13 +79,26 @@
         <p>Configure the parameters for the OpenLPT tracking pipeline. Proper path setup is critical for automatic
             parameter initialization.</p>
 
+        <div class="important-block" style="background-color: #2d2d30; border-left-color: #00bcd4;">
+            <strong>Prerequisites for Best Results:</strong>
+            <ul>
+                <li><strong>Calibration Accuracy</strong>: Ensure your camera parameters are accurate. Aim for a
+                    <strong>2D Projection Error &lt; 1.0 pixel</strong>.</li>
+                <li><strong>Image Quality</strong>: In <em>Image Preprocessing</em>, ensure a high Signal-to-Noise Ratio
+                    (SNR).</li>
+                <li><strong>Thresholding</strong>: For tracers, set the <strong>Intensity Threshold</strong> (in Object
+                    Settings) to a value that clearly separates particles from background noise.</li>
+            </ul>
+        </div>
+
         <h2>1. Project Directory</h2>
         <div class="step-block">
             <p><strong>This is the first and most important step.</strong></p>
             <ul>
                 <li><strong>Automatic Loading</strong>: Generally, the <em>Project Path</em>, <em>Image Path</em>, and
                     <em>Camera Path</em> will be automatically populated from previous modules (Camera Calibration and
-                    Image Preprocessing).</li>
+                    Image Preprocessing).
+                </li>
                 <li><strong>Manual Setup</strong>: If no paths are pre-loaded, you must manually select the correct
                     directories.</li>
                 <li><strong>Requirement</strong>: The <strong>Camera Path</strong> directory must contain valid camera

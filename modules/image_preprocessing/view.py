@@ -18,6 +18,13 @@ from PySide6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
 from .widgets import RangeSlider, ProcessingDialog
 
+try:
+    from pycine.raw import read_frames as pycine_read_frames
+    pycine = True
+except Exception as e:
+    print(f"Warning: Failed to import pycine: {e}")
+    pycine = None
+
 
 def imadjust_opencv(img, low_in, high_in, low_out=0, high_out=255, gamma=1.0):
     """
@@ -243,11 +250,13 @@ class ImagePreprocessingView(QWidget):
         self.camera_folders = []  # List of camera folder paths
         self.camera_images = {}  # {cam_idx: [image_paths]}
         self.camera_backgrounds = {}  # {cam_idx: background_image}
+        self.cine_shifts = {}   # {abs_path: shift_bits}
         self.current_cam = 0
         self.current_frame = 0
         self.original_image = None
         self.processed_image = None
         self.current_view_mode = "original"  # original, processed, background
+        self._stop_requested = False
         
         self._setup_ui()
     
@@ -444,6 +453,7 @@ class ImagePreprocessingView(QWidget):
         # Invert checkbox (applied to all image operations)
         self.invert_check = QCheckBox("Invert")
         self.invert_check.setStyleSheet("color: white;")
+        self.invert_check.stateChanged.connect(self._on_settings_changed)
         source_layout.addWidget(self.invert_check)
         
         # Frame List
@@ -473,6 +483,7 @@ class ImagePreprocessingView(QWidget):
         
         self.bg_enabled = QCheckBox("Enable")
         self.bg_enabled.setStyleSheet("color: white;")
+        self.bg_enabled.stateChanged.connect(self._on_settings_changed)
         bg_layout.addWidget(self.bg_enabled, 0, 0)
         
         # Calculate Background button
@@ -508,7 +519,7 @@ class ImagePreprocessingView(QWidget):
         """)
         bg_layout.addWidget(self.skip_frames_spin, 1, 1)
         
-        # Avg Count (short for "total images for average")
+        # Avg Count
         avg_label = QLabel("Avg Count:")
         avg_label.setStyleSheet("color: white;")
         bg_layout.addWidget(avg_label, 2, 0)
@@ -583,10 +594,26 @@ class ImagePreprocessingView(QWidget):
             }
             QPushButton:hover { background-color: #66e5ff; }
         """)
-        preview_btn.clicked.connect(self._preview_processing)
         settings_layout.addWidget(preview_btn)
         
-        settings_layout.addWidget(preview_btn)
+        # Batch Process Range
+        range_group = QGroupBox("Batch Process Range")
+        range_group.setStyleSheet("QGroupBox { border: 1px solid #444; border-radius: 4px; margin-top: 10px; padding-top: 10px; color: #ddd; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }")
+        range_layout = QHBoxLayout(range_group)
+        
+        range_layout.addWidget(QLabel("Start:"))
+        self.batch_start_spin = QSpinBox()
+        self.batch_start_spin.setRange(0, 999999)
+        self.batch_start_spin.setValue(0)
+        range_layout.addWidget(self.batch_start_spin)
+        
+        range_layout.addWidget(QLabel("End:"))
+        self.batch_end_spin = QSpinBox()
+        self.batch_end_spin.setRange(0, 999999)
+        self.batch_end_spin.setValue(1000)
+        range_layout.addWidget(self.batch_end_spin)
+        
+        settings_layout.addWidget(range_group)
         
         apply_btn = QPushButton("Process Image (Batch Export)")
         apply_btn.setStyleSheet("""
@@ -686,53 +713,105 @@ class ImagePreprocessingView(QWidget):
             self.project_path_input.setText(path)
 
     def _scan_images(self, root_dir):
-        """Scan directory for camera folders and images."""
+        """Scan directory for camera folders and images or cine files."""
+        print(f"\n--- Scanning Directory: {root_dir} ---")
         import os
         num_cams = self.num_cameras_spin.value()
-        
-        # Get all subdirectories sorted
-        try:
-            subdirs = sorted([
-                d for d in os.listdir(root_dir) 
-                if os.path.isdir(os.path.join(root_dir, d))
-            ])
-        except Exception as e:
-            print(f"Error scanning directory: {e}")
-            return
-        
-        if len(subdirs) < num_cams:
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(
-                self, "Warning",
-                f"Found only {len(subdirs)} folders, but {num_cams} cameras expected."
-            )
-            num_cams = min(num_cams, len(subdirs))
-        
-        self.camera_folders = [os.path.join(root_dir, d) for d in subdirs[:num_cams]]
-        
-        # Load images for each camera
+        print(f"Looking for {num_cams} cameras (settings)...")
         self.camera_images = {}
-        total_images = 0
+        total_images = 9999999 # Large number to find min
+        self.camera_folders = []
+        print(f"pycine library status: {'Available' if pycine is not None else 'NOT FOUND'}")
         
-        for i, folder in enumerate(self.camera_folders):
-            # Filter for images
-            files = sorted([
-                f for f in os.listdir(folder)
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff'))
-            ])
-            
-            full_paths = [os.path.join(folder, f) for f in files]
-            self.camera_images[i] = full_paths
-            
-            if i == 0:
-                total_images = len(files)
-            else:
-                total_images = min(total_images, len(files))
+        # 1. Try Rule 2 (Flat Cine) - cine files directly in root
+        root_cine_files = sorted([
+            f for f in os.listdir(root_dir)
+            if f.lower().endswith('.cine')
+        ])
         
+        if len(root_cine_files) > 0:
+            print(f"Detected {len(root_cine_files)} Cine files in root: {root_cine_files}")
+            # Use as many as possible up to num_cams
+            actual_cams = min(len(root_cine_files), num_cams)
+            for i in range(actual_cams):
+                cine_path = os.path.join(root_dir, root_cine_files[i])
+                if pycine:
+                    try:
+                        from pycine.file import read_header
+                        header = read_header(cine_path)
+                        cfh = header['cinefileheader']
+                        n_frames = cfh.ImageCount
+                        first_idx = cfh.FirstImageNo
+                        # Store as virtual paths
+                        self.camera_images[i] = [f"{cine_path}#{j}" for j in range(first_idx, first_idx + n_frames)]
+                        total_images = min(total_images, n_frames)
+                        self.camera_folders.append(cine_path)
+                        print(f"Loaded Cine: {cine_path} with {n_frames} frames (Start: {first_idx})")
+                    except Exception as e:
+                        print(f"Error reading cine {cine_path}: {e}")
+                else:
+                    print("Error: pycine library not found but .cine files detected.")
+            
+            if len(root_cine_files) < num_cams and len(root_cine_files) > 0:
+                print(f"Warning: Expected {num_cams} cameras, but found only {len(root_cine_files)} Cine files.")
+            
+        else:
+            # 2. Try Rule 1 (Subfolders with Cine) or Standard Images
+            try:
+                subdirs = sorted([
+                    d for d in os.listdir(root_dir) 
+                    if os.path.isdir(os.path.join(root_dir, d))
+                ])
+            except Exception as e:
+                print(f"Error scanning directory: {e}")
+                return
+            
+            num_cams = min(num_cams, len(subdirs))
+            self.camera_folders = [os.path.join(root_dir, d) for d in subdirs[:num_cams]]
+            print(f"Found {len(subdirs)} subfolders. Using first {num_cams}: {subdirs[:num_cams]}")
+            
+            for i, folder in enumerate(self.camera_folders):
+                # Check for images first
+                img_files = sorted([
+                    f for f in os.listdir(folder)
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff'))
+                ])
+                
+                if img_files:
+                    # Standard Image Folder
+                    self.camera_images[i] = [os.path.join(folder, f) for f in img_files]
+                    total_images = min(total_images, len(img_files))
+                else:
+                    # Look for Cine (Rule 1)
+                    cine_files = sorted([f for f in os.listdir(folder) if f.lower().endswith('.cine')])
+                    if cine_files and pycine:
+                        cine_path = os.path.join(folder, cine_files[0])
+                        try:
+                            from pycine.file import read_header
+                            header = read_header(cine_path)
+                            cfh = header['cinefileheader']
+                            n_frames = cfh.ImageCount
+                            first_idx = cfh.FirstImageNo
+                            self.camera_images[i] = [f"{cine_path}#{j}" for j in range(first_idx, first_idx + n_frames)]
+                            total_images = min(total_images, n_frames)
+                            print(f"Loaded Cine from subfolder: {cine_path} with {n_frames} frames")
+                        except Exception as e:
+                            print(f"Error reading cine {cine_path}: {e}")
+                    else:
+                        self.camera_images[i] = []
+                        total_images = 0
+
+        if total_images == 9999999:
+            total_images = 0
+            
         # Update UI
         self.current_cam = 0
         self.current_frame = 0
-        self.image_count_label.setText(f"{total_images} images per camera")
+        self.image_count_label.setText(f"{total_images} frames per camera")
+        
+        # Update batch range end to max frames
+        if hasattr(self, 'batch_end_spin'):
+            self.batch_end_spin.setValue(max(0, total_images - 1))
         
         # Update Camera Tabs
         self._create_camera_tabs(len(self.camera_folders))
@@ -743,11 +822,13 @@ class ImagePreprocessingView(QWidget):
         
         if 0 in self.camera_images:
             self.image_paths = self.camera_images[0] # Use cam 1 for list
-            # Ensure we only iterate up to setRowCount
             count = min(len(self.image_paths), total_images)
             for row in range(count):
                 path = self.image_paths[row]
-                fname = os.path.basename(path)
+                if "#" in path:
+                    fname = os.path.basename(path.split("#")[0]) + f" [Frame {path.split('#')[1]}]"
+                else:
+                    fname = os.path.basename(path)
                 
                 item_idx = QTableWidgetItem(str(row + 1))
                 item_idx.setData(Qt.ItemDataRole.ForegroundRole, QColor("white"))
@@ -757,7 +838,6 @@ class ImagePreprocessingView(QWidget):
                 item_name.setData(Qt.ItemDataRole.ForegroundRole, QColor("white"))
                 self.frame_table.setItem(row, 1, item_name)
         
-        # Load first image
         if total_images > 0:
             self._load_current_image()
         
@@ -801,24 +881,42 @@ class ImagePreprocessingView(QWidget):
         if not images or self.current_frame >= len(images):
             return
         
+        # If we are simply viewing the background, don't read the raw image
+        if self.current_view_mode == "background":
+            self._toggle_view("background")
+            return
+
         path = images[self.current_frame]
-        raw_image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        raw_image = self._read_image(path)
         
         if raw_image is not None:
-            # Apply invert if checked
-            if self.invert_check.isChecked():
-                self.original_image = 255 - raw_image
-            else:
-                self.original_image = raw_image
-            
+            self.original_image = raw_image  # Keep RAW (may be uint16)
             self.processed_image = None
             
-            # If we are in processed mode, re-run the processing pipeline
             if self.current_view_mode == "processed":
                 self._preview_processing()
             else:
-                # Otherwise just update the view
-                self._toggle_view(self.current_view_mode)
+                # For "original" view: normalize high bit-depth for display
+                display_img = self._normalize_for_display(raw_image)
+                if self.invert_check.isChecked():
+                    display_img = 255 - display_img
+                self.image_label.setCvImage(display_img)
+                self._update_toggle_buttons()
+    
+    def _normalize_for_display(self, img):
+        """Normalize high bit-depth image to 8-bit for display using percentile stretch."""
+        if img.dtype == np.uint8:
+            return img
+        
+        # Use percentile-based normalization for stable display
+        p_low = np.percentile(img, 1)
+        p_high = np.percentile(img, 99.5)
+        
+        if p_high - p_low < 1:
+            p_high = p_low + 1
+        
+        normalized = (img.astype(np.float32) - p_low) / (p_high - p_low) * 255
+        return np.clip(normalized, 0, 255).astype(np.uint8)
     
     def _toggle_view(self, view_mode):
         """Toggle between original, processed, and background view."""
@@ -827,111 +925,287 @@ class ImagePreprocessingView(QWidget):
         
         if view_mode == "original":
             if self.original_image is not None:
-                self.image_label.setCvImage(self.original_image)
+                img = self._normalize_for_display(self.original_image)
+                if self.invert_check.isChecked():
+                    img = 255 - img
+                self.image_label.setCvImage(img)
         elif view_mode == "processed":
-            # Apply background subtraction if enabled
-            self._apply_background_subtraction()
             if self.processed_image is not None:
                 self.image_label.setCvImage(self.processed_image)
-            elif self.original_image is not None:
-                self.image_label.setCvImage(self.original_image)
-        elif view_mode == "background":
-            # Show the calculated background for current camera
-            if self.bg_enabled.isChecked() and self.current_cam in self.camera_backgrounds:
-                self.image_label.setCvImage(self.camera_backgrounds[self.current_cam])
             else:
-                # No background available
-                pass
+                self._preview_processing()
+        elif view_mode == "background":
+            if self.current_cam in self.camera_backgrounds:
+                bg = self.camera_backgrounds[self.current_cam]
+                # Normalize float32 background for display
+                bg_display = self._normalize_for_display(bg)
+                if self.invert_check.isChecked():
+                    bg_display = 255 - bg_display
+                self.image_label.setCvImage(bg_display)
     
-    def _apply_background_subtraction(self):
-        """Apply background subtraction to current image."""
-        if self.original_image is None:
-            return
-        
-        # Convert to grayscale if needed
-        if len(self.original_image.shape) == 3:
-            img = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
-        else:
-            img = self.original_image.copy()
-        
-        # Check if background subtraction is enabled and background exists
-        if self.bg_enabled.isChecked() and self.current_cam in self.camera_backgrounds:
-            bg = self.camera_backgrounds[self.current_cam]
-            # Subtract and clamp to 0
-            result = img.astype(np.float32) - bg.astype(np.float32)
-            result = np.clip(result, 0, 255).astype(np.uint8)
-            self.processed_image = result
-        else:
-            self.processed_image = img
     
     def _calculate_all_backgrounds(self):
         """Calculate background for all cameras."""
-        # Check if images are loaded
         if not self.camera_images:
             return
+            
+        self._stop_requested = False
         
         from PySide6.QtWidgets import QProgressDialog
         from PySide6.QtCore import Qt
         
-        skip = self.skip_frames_spin.value()
+        stride = max(1, self.skip_frames_spin.value())
         avg_count = self.avg_count_spin.value()
         num_cams = len(self.camera_images)
         
-        # Create progress dialog
-        progress = QProgressDialog("Calculating backgrounds...", None, 0, num_cams, self)
+        # Calculate total frames to process for progress bar
+        total_frames = 0
+        for cam_idx in self.camera_images:
+            images = self.camera_images[cam_idx]
+            available_indices = list(range(0, len(images), stride))
+            selected_count = min(len(available_indices), avg_count)
+            total_frames += selected_count
+        
+        # Add 1 frame per camera for bit shift calculation
+        total_frames += num_cams
+        
+        progress = QProgressDialog("Calculating backgrounds...", None, 0, total_frames, self)
         progress.setWindowTitle("Background Calculation")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
         progress.setFixedSize(420, 110)
         progress.setStyleSheet("""
-            QProgressDialog {
-                padding: 15px;
-            }
-            QProgressBar {
-                min-height: 25px;
-                max-height: 25px;
-                margin: 10px 15px;
-            }
+            QProgressDialog { padding: 15px; }
+            QProgressBar { min-height: 25px; max-height: 25px; margin: 10px 15px; }
         """)
         progress.show()
         
+        global_frame_count = 0
+        
         for cam_idx in self.camera_images:
-            progress.setValue(cam_idx)
-            progress.setLabelText(f"Calculating background for Camera {cam_idx}...")
-            QApplication.processEvents()
-            
             images = self.camera_images[cam_idx]
             if not images:
                 continue
             
-            # Select frames for averaging
-            selected_frames = images[skip:skip + avg_count]
-            if not selected_frames:
-                selected_frames = images[:avg_count]  # Use available if not enough
+            available_indices = list(range(0, len(images), stride))
+            selected_indices = available_indices[:avg_count]
             
-            # Calculate average background
+            
+            if not selected_indices:
+                continue
+
             accumulator = None
             count = 0
-            invert = self.invert_check.isChecked()
-            for path in selected_frames:
+            
+            # Cache 10 evenly-spaced frames for bit shift calculation
+            num_samples = min(10, len(selected_indices))
+            sample_step = max(1, len(selected_indices) // num_samples)
+            sample_frame_indices = set(range(0, len(selected_indices), sample_step)[:num_samples])
+            cached_frames = []
+            
+            # Helper function
+            def to_gray_float32(img):
+                if img is None:
+                    return None
+                if len(img.shape) == 3:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                return img.astype(np.float32)
+            
+            # Parse cine items: (file_path, frame_idx, i, idx)
+            cine_items = []
+            non_cine_items = []  # (i, idx) for standard images
+            for i, idx in enumerate(selected_indices):
+                path = images[idx]
+                if "#" in path:
+                    file_path, frame_idx = path.split("#")
+                    cine_items.append((file_path, int(frame_idx), i, idx))
+                else:
+                    non_cine_items.append((i, idx, path))
+            
+            # Group cine items by file_path
+            from collections import defaultdict
+            groups = defaultdict(list)
+            for file_path, frame_idx, i, idx in cine_items:
+                groups[file_path].append((frame_idx, i, idx))
+            
+            accumulator = None
+            count = 0
+            chunk_size = 100  # Smaller chunk size for better handling of sparse data
+            
+            # Process Cine files with chunk-based reading
+            for file_path, lst in groups.items():
+                if self._stop_requested:
+                    break
+                
+                # Diagnostic: Print FirstImageNo and valid range
+                # Diagnostic: Print FirstImageNo and valid range
+                try:
+                    from pycine.file import read_header
+                    header = read_header(file_path)
+                    cfh = header['cinefileheader']
+                    first_no = cfh.FirstImageNo
+                    img_count = cfh.ImageCount
+                    last_no = first_no + img_count - 1
+                except Exception as e:
+                    print(f"DEBUG: Could not read metadata for {file_path}: {e}")
+                    first_no, last_no = 0, 999999
+                    
+                lst.sort(key=lambda x: x[0])  # Sort by frame_idx
+                frame_list = [x[0] for x in lst]
+                want = {frame_idx: (i, idx) for frame_idx, i, idx in lst}
+                
+                # Warn if any requested frames are out of range
+                out_of_range = [f for f in frame_list if f < first_no or f > last_no]
+                if out_of_range:
+                    print(f"WARNING: {len(out_of_range)} frames are out of valid range! First 5: {out_of_range[:5]}")
+                
+                # Read in chunks
+                p = 0
+                while p < len(frame_list):
+                    if self._stop_requested:
+                        break
+                    
+                    start = frame_list[p]
+                    # Find end of this chunk (up to chunk_size frames or end of list)
+                    q = p
+                    while q + 1 < len(frame_list) and (frame_list[q + 1] - start) < chunk_size:
+                        q += 1
+                    end = frame_list[q]
+                    
+                    # Update progress every chunk
+                    progress.setLabelText(f"Cam {cam_idx}: Reading frames {start}-{end}...")
+                    QApplication.processEvents()
+                    
+                    try:
+                        if not pycine:
+                            break
+                        # pycine: read_frames(file, start_frame, count) returns generator
+                        chunk_count = end - start + 1
+                        raw_images, setup, bpp = pycine_read_frames(file_path, start_frame=start, count=chunk_count)
+                        imgs = list(raw_images)
+                        
+                        if imgs:
+                            # Process frames we need from this chunk
+                            for k, fr in enumerate(range(start, end + 1)):
+                                if fr not in want:
+                                    continue
+                                
+                                raw = np.array(imgs[k])
+                                img = to_gray_float32(raw)
+                                if img is None:
+                                    continue
+                                
+                                if accumulator is None:
+                                    accumulator = img.astype(np.float64)
+                                else:
+                                    accumulator += img.astype(np.float64)
+                                count += 1
+                                global_frame_count += 1
+                                
+                                i_orig, idx_orig = want[fr]
+                                if i_orig in sample_frame_indices:
+                                    cached_frames.append(img.copy())
+                                
+                                # Update progress every 20 frames
+                                if count % 20 == 0:
+                                    progress.setValue(global_frame_count)
+                                    QApplication.processEvents()
+                        
+                    except Exception as e:
+                        print(f"Error reading chunk {start}-{end}: {e}")
+                        # Fallback: try individual frames for this chunk
+                        for fr, i_orig, idx_orig in lst[p:q+1]:
+                            try:
+                                raw_images, _, _ = pycine_read_frames(file_path, start_frame=fr, count=1)
+                                one = list(raw_images)
+                                if one:
+                                    raw = np.array(one[0])
+                                    img = to_gray_float32(raw)
+                                    if img is not None:
+                                        if accumulator is None:
+                                            accumulator = img.astype(np.float64)
+                                        else:
+                                            accumulator += img.astype(np.float64)
+                                        count += 1
+                                        global_frame_count += 1
+                                        if i_orig in sample_frame_indices:
+                                            cached_frames.append(img.copy())
+                            except Exception as e2:
+                                print(f"Error reading cine frame {fr}: {e2}")
+                    
+                    p = q + 1
+            
+            # Process non-cine images (standard files)
+            for i, idx, path in non_cine_items:
+                if self._stop_requested:
+                    break
+                
                 img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
                 if img is None:
                     continue
-                # Apply invert if checked
-                if invert:
-                    img = 255 - img
-                if len(img.shape) == 3:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                
+                img_gray = to_gray_float32(img)
+                if img_gray is None:
+                    continue
+                
                 if accumulator is None:
-                    accumulator = img.astype(np.float64)
+                    accumulator = img_gray.astype(np.float64)
                 else:
-                    accumulator += img.astype(np.float64)
+                    accumulator += img_gray.astype(np.float64)
                 count += 1
+                global_frame_count += 1
+                
+                if i in sample_frame_indices:
+                    cached_frames.append(img_gray.copy())
+                
+                if count % 20 == 0:
+                    progress.setValue(global_frame_count)
+                    progress.setLabelText(f"Cam {cam_idx}: {count} frames...")
+                    QApplication.processEvents()
             
             if count > 0:
-                self.camera_backgrounds[cam_idx] = (accumulator / count).astype(np.uint8)
+                bg = (accumulator / count).astype(np.float32)
+                self.camera_backgrounds[cam_idx] = bg
+                
+                # Calculate Bit Shift using cached frames (no re-reading!)
+                progress.setLabelText(f"Cam {cam_idx}: Calculating bit shift...")
+                QApplication.processEvents()
+                
+                subtracted_stats = []
+                for raw_img in cached_frames:
+                    # raw_img is now already float32 gray
+                    
+                    # Handle Invert logic for shift calculation
+                    if self.invert_check.isChecked():
+                        subtracted = np.clip(bg - raw_img, 0, None)
+                    else:
+                        subtracted = np.clip(raw_img - bg, 0, None)
+                        
+                    # Use percentile-based estimation (Robust to outliers and sparse signals)
+                    subset = subtracted[::8, ::8].ravel()
+                    p_val = np.percentile(subset, 99.5)
+                    subtracted_stats.append(p_val)
+                
+                # Clear cache to free memory
+                cached_frames.clear()
+                
+                if subtracted_stats:
+                    final_p_val = np.mean(subtracted_stats)
+                    if final_p_val <= 1:
+                        n = 8 # Default to no shift if signal is very weak
+                    else:
+                        n = np.ceil(np.log2(final_p_val))
+                    
+                    self.cine_shifts[cam_idx] = max(0, int(n - 8))
+                else:
+                    self.cine_shifts[cam_idx] = 0
+                
+                # Advance progress for bit shift
+                global_frame_count += 1
+                progress.setValue(global_frame_count)
+                QApplication.processEvents()
         
-        progress.setValue(num_cams)
+        progress.setValue(total_frames)
         print(f"Calculated backgrounds for {len(self.camera_backgrounds)} cameras")
     
     def _update_toggle_buttons(self):
@@ -943,40 +1217,74 @@ class ImagePreprocessingView(QWidget):
     
     def _on_settings_changed(self):
         """Called when any adjustment setting changes."""
-        pass  # Preview is manual via button
+        if self.current_view_mode == "processed":
+            self._preview_processing()
+        else:
+            # If in original or background mode, just refresh current display (handles Invert toggle)
+            self._toggle_view(self.current_view_mode)
     
     
-    def _apply_processing_pipeline(self, img_data, bg_data=None):
+    def _apply_processing_pipeline(self, img_data, bg_data=None, cam_idx=None):
         """
         Apply the full processing pipeline to a single image.
-        Pipeline: Invert -> Background Subtraction -> Denoise (LaVision) -> Intensity Adjustment
+        Pipeline: Background Subtraction (float32) -> Bit Shift (8-bit) -> Input Range -> Denoise
         """
-        # 0. Ensure format
+        if cam_idx is None:
+            cam_idx = self.current_cam
+            
+        # 0. Ensure grayscale and float32
         if len(img_data.shape) == 3:
-            gray = cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY).astype(np.float32)
         else:
-            gray = img_data.copy()
-            
-        result = gray.astype(np.float32)
+            gray = img_data.astype(np.float32)
         
-        # 1. Background Subtraction
+        # 1. Background Subtraction (in float32, before bit shift)
         if self.bg_enabled.isChecked() and bg_data is not None:
-            result = result - bg_data.astype(np.float32)
-            result = np.clip(result, 0, 255)
+            # bg_data is already float32
+            # Handle Invert logic here:
+            # If Invert is checked (Shadowgraphy), Signal = Background - Image
+            # If Norm/Fluorescence, Signal = Image - Background
+            if self.invert_check.isChecked():
+                result = bg_data - gray
+            else:
+                result = gray - bg_data
             
-        # 2. LaVision Processing (Enhanced Denoise)
+            result = np.clip(result, 0, None)  # Allow values > 255 for now
+        else:
+            result = gray
+        
+        # 2. Bit Shift to 8-bit (using pre-calculated N from subtracted frame statistics)
+        shift = self.cine_shifts.get(cam_idx, 0)
+        
+        # DEBUG Pipeline
+        # p_val = np.percentile(result, 99.5)
+        # Only print occasionally or for single frame preview (not batch)
+        # But for now, we print always (it's fast enough for preview)
+        # print(f"DEBUG Pipeline Cam {self.current_cam}: Shift={shift}, Pre-Shift Max={result.max()}, P99.5={p_val}")
+        
+        if shift > 0:
+            result = (result / (2**shift))
+        result = np.clip(result, 0, 255).astype(np.uint8)
+        
+        # 3. Invert (Apply ONLY if BG subtraction was NOT done)
+        # If we did (BG - Image), we already have "Bright Signal". We don't want to invert back.
+        # If BG disabled, and Invert checked, we still need to invert.
+        if self.invert_check.isChecked() and not (self.bg_enabled.isChecked() and bg_data is not None):
+            result = 255 - result
+        
+        # 4. Input Range Adjustment (imadjust on 8-bit)
+        low_in = self.range_slider.minValue()
+        high_in = self.range_slider.maxValue()
+        result = imadjust_opencv(result, low_in, high_in)
+        
+        # 5. LaVision Processing (Enhanced Denoise, on 8-bit)
         if self.denoise_check.isChecked():
             a = result.astype(np.float32)
-            # Sliding minimum subtraction
             kernel = np.ones((3, 3), np.uint8)
             b = cv2.erode(a, kernel, iterations=1)
             c = a - b
-            # Second pass
-            b = cv2.erode(a, kernel, iterations=1) # Note: Logic copied from preview, check if intentional
-            c = c - b # Effectively c - 2*b if b same? Wait, original logic:
-            # c = a - b
-            # then c = c - b (where b is recopied). 
-            # In MATLAB code provided: c = c - imerode(a, true(3)). So yes, subtract min filter twice.
+            b = cv2.erode(a, kernel, iterations=1)
+            c = c - b
             
             d = cv2.GaussianBlur(c, (0, 0), 0.5)
             
@@ -984,19 +1292,12 @@ class ImagePreprocessingView(QWidget):
             e = cv2.blur(d, (k_size, k_size))
             f = a - e
             
-            # Sharpen
             blurred_f = cv2.GaussianBlur(f, (0, 0), 1.0)
             sharp = f + 0.8 * (f - blurred_f)
             
             result = np.clip(sharp, 0, 255).astype(np.uint8)
-            
-        # 3. Intensity Adjustment (imadjust)
-        low_in = self.range_slider.minValue()
-        high_in = self.range_slider.maxValue()
-        result = imadjust_opencv(result, low_in, high_in)
         
         return result.astype(np.uint8)
-    
     def _preview_processing(self):
         """Apply current settings and show preview."""
         if self.original_image is None:
@@ -1007,18 +1308,15 @@ class ImagePreprocessingView(QWidget):
         if self.current_cam in self.camera_backgrounds:
             bg = self.camera_backgrounds[self.current_cam]
             
-        # Use valid pipeline
+        # Use unified pipeline
         processed = self._apply_processing_pipeline(self.original_image, bg)
         
         self.processed_image = processed
-        self.show_processed = True
-        self._update_toggle_buttons()
-        self.image_label.setCvImage(self.processed_image)
-    
+        self._toggle_view("processed")
     def _apply_to_all(self):
         """Apply current settings to all loaded images."""
         # TODO: Implement batch processing
-        print(f"Apply to all {len(self.image_paths)} images")
+        print(f"Apply to all images")
 
     def _on_process_clicked(self):
         """Start batch processing of all images."""
@@ -1053,6 +1351,9 @@ class ImagePreprocessingView(QWidget):
         # cam_files_map[cam_idx] = [abs_path1, abs_path2, ...]
         cam_files_map = {} 
         
+        start_idx = self.batch_start_spin.value()
+        end_idx = self.batch_end_spin.value()
+        
         for cam_idx, file_list in self.camera_images.items():
             cam_dir_name = f"cam{cam_idx}"
             cam_out_dir = os.path.join(img_file_dir, cam_dir_name)
@@ -1062,6 +1363,9 @@ class ImagePreprocessingView(QWidget):
             cam_files_map[cam_idx] = []
             
             for i, src_path in enumerate(file_list):
+                if not (start_idx <= i <= end_idx):
+                    continue
+                    
                 # Naming: img000000.tif
                 filename = f"img{i:06d}.tif"
                 dst_path = os.path.join(cam_out_dir, filename)
@@ -1112,19 +1416,15 @@ class ImagePreprocessingView(QWidget):
                     break
             
             # 1. Load
-            src_img = cv2.imread(task["src"], cv2.IMREAD_UNCHANGED)
+            src_img = self._read_image(task["src"])
             if src_img is None:
                 continue
                 
-            # Invert if needed (global setting)
-            if self.invert_check.isChecked():
-                src_img = 255 - src_img
-            
             # 2. Get Background
             bg = self.camera_backgrounds.get(task["cam_idx"])
             
-            # 3. Process
-            processed = self._apply_processing_pipeline(src_img, bg)
+            # 3. Process (Pipeline handles Invert internally)
+            processed = self._apply_processing_pipeline(src_img, bg, cam_idx=task["cam_idx"])
             
             # 4. Save
             cv2.imwrite(task["dst"], processed)
@@ -1151,6 +1451,31 @@ class ImagePreprocessingView(QWidget):
         
     def _stop_batch_processing(self):
         self._stop_requested = True
+        
+    def _read_image(self, path):
+        """Helper to read image from either file or cine frame. Returns raw data (no bit shift)."""
+        import os
+        if "#" in path:
+            file_path, frame_idx = path.split("#")
+            frame_idx = int(frame_idx)
+            
+            if not pycine:
+                return None
+            
+            try:
+                raw_images, setup, bpp = pycine_read_frames(file_path, start_frame=frame_idx, count=1)
+                images = list(raw_images)
+                if images and len(images) > 0:
+                    # Return raw data (uint16 or uint8) - no bit shifting here
+                    return np.array(images[0])
+                else:
+                    return None
+            except Exception as e:
+                print(f"Error reading frame {frame_idx} from {file_path}: {e}")
+                return None
+        else:
+            return cv2.imread(path, cv2.IMREAD_UNCHANGED)
+
         
     def _pause_batch_processing(self, paused):
         self._is_paused = paused

@@ -11,6 +11,7 @@
 ### 🚀 Key Capabilities
 *   **3D Particle Tracking**: Robust Lagrangian tracking (LPT) and Shake-the-Box (STB) methods.
 *   **Multi-Camera Calibration**: Easy-to-use tools for wand and plate calibration (intrinsic & extrinsic parameters).
+    *   *Note*: The current calibration implementation assumes no refraction. For experimental setups involving observation windows, it is critical that the cameras are oriented as close to the surface normal (orthogonal) as possible.
 *   **Cross-Platform**: Full support for **Windows**, **macOS**, and **Linux**.
 *   **Performance**: High-performance C++ core with Python Python bindings for flexibility and speed.
 

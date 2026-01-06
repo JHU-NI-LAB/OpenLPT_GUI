@@ -2,6 +2,9 @@
 
 This guide walks you through the camera calibration process using a calibration wand in OpenLPT. The process consists of two main stages: **Point Detection** and **Calibration**.
 
+> [!IMPORTANT]
+> **Refractive Interfaces:** The implemented calibration model assumes a homogeneous medium without refractive interfaces. For experimental setups involving observation windows (e.g., glass or acrylic), it is critical that the cameras are oriented as close to the surface normal (perpendicular) as possible. Furthermore, it is assumed that the paraxial approximation is valid within the reconstructed volume (i.e., small-angle observation) to maintain geometric accuracy.
+
 ## 1. Point Detection
 
 First, select the **Wand Calibration** tab and ensure you are on the **Point Detection** sub-tab.
