@@ -975,8 +975,13 @@ class ImagePreprocessingView(QWidget):
         progress.setMinimumDuration(0)
         progress.setFixedSize(420, 110)
         progress.setStyleSheet("""
-            QProgressDialog { padding: 15px; }
-            QProgressBar { min-height: 25px; max-height: 25px; margin: 10px 15px; }
+            QProgressDialog { background-color: #2b2b2b; color: #ffffff; padding: 15px; border: 1px solid #444; }
+            QLabel { color: #ffffff; font-size: 13px; font-weight: bold; background-color: transparent; }
+            QProgressBar { 
+                min-height: 25px; max-height: 25px; margin: 10px 15px; 
+                background-color: #444; border-radius: 4px; text-align: center; color: white;
+            }
+            QProgressBar::chunk { background-color: #00bcd4; border-radius: 4px; }
         """)
         progress.show()
         

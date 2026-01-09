@@ -9,6 +9,174 @@ import concurrent.futures
 import multiprocessing
 import os
 
+
+# --- Robust Detection Constants ---
+RANSAC_THRESH = 3.0
+RANSAC_ITERS = 500
+FAST_ANNULUS_LOW = 0.7
+FAST_ANNULUS_HIGH = 1.3
+
+# --- Robust Detection Helpers ---
+def thin_by_angle(pts, cx, cy, r_init, nbin=360):
+    ang = np.arctan2(pts[:,1]-cy, pts[:,0]-cx)
+    bins = ((ang + np.pi)/(2*np.pi)*nbin).astype(int)
+    bins = np.clip(bins, 0, nbin-1)
+    keep = []
+    for b in range(nbin):
+        idx = np.where(bins == b)[0]
+        if idx.size == 0: continue
+        dists = np.sqrt((pts[idx,0]-cx)**2 + (pts[idx,1]-cy)**2)
+        dist_diff = np.abs(dists - r_init)
+        best_i = idx[np.argmin(dist_diff)]
+        keep.append(best_i)
+    return pts[np.array(keep)]
+
+def refine_circle_with_edges(img_gray, cx_init, cy_init, r_init, exclusion_mask=None):
+    H, W = img_gray.shape
+    img_blur = cv2.GaussianBlur(img_gray, (5, 5), 1.5)
+    edges = cv2.Canny(img_blur, 30, 80)
+    
+    y_idx, x_idx = np.indices((H, W))
+    dist_sq = (x_idx - cx_init)**2 + (y_idx - cy_init)**2
+    r_min_sq = (r_init * FAST_ANNULUS_LOW)**2
+    r_max_sq = (r_init * FAST_ANNULUS_HIGH)**2
+    mask_annulus = (dist_sq >= r_min_sq) & (dist_sq <= r_max_sq)
+    edges[~mask_annulus] = 0
+    
+    if exclusion_mask is not None:
+        edges[exclusion_mask > 0] = 0
+        
+    edge_coords = np.column_stack(np.where(edges > 0)) # [y, x]
+    if len(edge_coords) < 10:
+        return None, None, None, None
+        
+    pts_raw = edge_coords[:, [1, 0]].astype(np.float32)
+    pts = thin_by_angle(pts_raw, cx_init, cy_init, r_init, nbin=360)
+    n_points = pts.shape[0]
+    
+    best_score = -1.0
+    best_model = None 
+    
+    for _ in range(RANSAC_ITERS):
+        if n_points < 3: break
+        try:
+            sample_idx = np.random.choice(n_points, 3, replace=False)
+        except ValueError: break
+        
+        p1, p2, p3 = pts[sample_idx]
+        D = 2 * (p1[0] * (p2[1] - p3[1]) + p2[0] * (p3[1] - p1[1]) + p3[0] * (p1[1] - p2[1]))
+        if abs(D) < 1.0: continue 
+        
+        Ux = ((p1[0]**2 + p1[1]**2) * (p2[1] - p3[1]) + (p2[0]**2 + p2[1]**2) * (p3[1] - p1[1]) + (p3[0]**2 + p3[1]**2) * (p1[1] - p2[1])) / D
+        Uy = ((p1[0]**2 + p1[1]**2) * (p3[0] - p2[0]) + (p2[0]**2 + p2[1]**2) * (p1[0] - p3[0]) + (p3[0]**2 + p3[1]**2) * (p2[0] - p1[0])) / D
+        R_cand = np.sqrt((p1[0] - Ux)**2 + (p1[1] - Uy)**2)
+        
+        if abs(R_cand - r_init) > 20: continue
+        
+        dists = np.sqrt((pts[:, 0] - Ux)**2 + (pts[:, 1] - Uy)**2)
+        residuals = np.abs(dists - R_cand)
+        inliers_mask = residuals < RANSAC_THRESH
+        n_inliers = np.count_nonzero(inliers_mask)
+        
+        if n_inliers < 10: continue
+        
+        inlier_pts = pts[inliers_mask]
+        angles = np.arctan2(inlier_pts[:, 1] - Uy, inlier_pts[:, 0] - Ux)
+        nbin = 72
+        bins = ((angles + np.pi) / (2*np.pi) * nbin).astype(int)
+        bins = np.clip(bins, 0, nbin-1)
+        coverage = len(np.unique(bins)) / float(nbin)
+        
+        if coverage < 0.4: continue
+        mean_res = np.mean(residuals[inliers_mask])
+        score = (coverage**2 * np.sqrt(n_inliers)) / (mean_res + 1e-5)
+        
+        if score > best_score:
+            best_score = score
+            best_model = ((Ux, Uy), R_cand, inliers_mask)
+
+    if best_model is None:
+        return None, None, None, None
+
+    (bcx, bcy), br, bmask = best_model
+    
+    # Least Squares Refinement
+    inlier_pts_final = pts[bmask]
+    x, y = inlier_pts_final[:, 0], inlier_pts_final[:, 1]
+    A_mat = np.column_stack([x, y, np.ones_like(x)])
+    b_vec = -(x**2 + y**2)
+    
+    refined_cx, refined_cy, refined_r = bcx, bcy, br
+    try:
+        result, _, _, _ = np.linalg.lstsq(A_mat, b_vec, rcond=None)
+        A_ls, B_ls, C_ls = result
+        ls_cx = -A_ls / 2.0
+        ls_cy = -B_ls / 2.0
+        R_sq = ls_cx**2 + ls_cy**2 - C_ls
+        if R_sq > 0:
+            ls_r = np.sqrt(R_sq)
+            if abs(ls_r - br) < 5.0 and np.sqrt((ls_cx-bcx)**2+(ls_cy-bcy)**2) < 5.0:
+                 refined_cx, refined_cy, refined_r = ls_cx, ls_cy, ls_r
+    except:
+        pass
+        
+    return refined_cx, refined_cy, refined_r, best_score
+
+def detect_circles_robust(img_gray, min_r, max_r):
+    """
+    Run the Robust Pipeline: DT Candidates -> Refinement -> Metric Sort.
+    Returns: list of [x, y, r, metric_score]
+    """
+    # 1. Global Otsu for DT
+    _, img_bin = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Fill contours
+    contours, _ = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    img_bin_filled = np.zeros_like(img_bin)
+    cv2.drawContours(img_bin_filled, contours, -1, 255, cv2.FILLED)
+    
+    # 2. Distance Transform
+    dist = cv2.distanceTransform(img_bin_filled, cv2.DIST_L2, 5)
+    
+    # 3. Find Candidates
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 21)) 
+    dilated = cv2.dilate(dist, kernel)
+    is_peak = (dist == dilated) & (dist > 0)
+    peak_points = np.column_stack(np.where(is_peak))
+    
+    candidates = []
+    for (py, px) in peak_points:
+        r_guess = dist[py, px]
+        if min_r <= r_guess <= max_r:
+            candidates.append({'x': px, 'y': py, 'r': r_guess})
+    candidates.sort(key=lambda c: c['r'], reverse=True)
+    
+    # NMS
+    final_candidates = []
+    for cand in candidates:
+        keep = True
+        for exist in final_candidates:
+            d = np.sqrt((cand['x'] - exist['x'])**2 + (cand['y'] - exist['y'])**2)
+            if d < exist['r']:
+                keep = False; break
+        if keep: final_candidates.append(cand)
+            
+    # 4. Refinement Loop
+    results = []
+    exclusion_mask = np.zeros_like(img_bin)
+    
+    for cand in final_candidates:
+        cx, cy, r, metric = refine_circle_with_edges(img_gray, cand['x'], cand['y'], cand['r'], exclusion_mask)
+        if cx is not None:
+            if min_r <= r <= max_r:
+                # IMPORTANT: Metric is float, x/y are float. Return unified list.
+                results.append([cx, cy, r, metric]) 
+                cv2.circle(exclusion_mask, (int(cx), int(cy)), int(r + 5), 255, -1)
+    
+    # Sort by Metric (Higher is Better)
+    results.sort(key=lambda x: x[3], reverse=True)
+    return results
+
 # --- Parallel Worker Function (Top-Level) ---
 def run_detection_task(args):
     """
@@ -19,8 +187,6 @@ def run_detection_task(args):
     f_idx, c_idx, img_path, wand_type, min_radius, max_radius, sensitivity = args
     
     try:
-        from pyopenlpt import Image as LPTImage, CircleIdentifier
-        
         # 1. Read Image
         if not os.path.exists(img_path):
             return f_idx, c_idx, None
@@ -37,10 +203,24 @@ def run_detection_task(args):
         if wand_type == "dark":
             img = cv2.bitwise_not(img)
             
-        # 4. Convert to LPT
-        lpt_img = LPTImage.from_numpy(img)
+        # --- STRATEGY: Try Robust DT First ---
+        try:
+             robust_pts = detect_circles_robust(img, float(min_radius), float(max_radius))
+             if len(robust_pts) >= 2:
+                 # Success: Return Top 2 Highest Metric
+                 final_pts = robust_pts[:2]
+                 # Re-sort by radius (Small -> Large) as expected by downstream logic
+                 final_pts = sorted(final_pts, key=lambda p: p[2])
+                 return f_idx, c_idx, np.array(final_pts)
+        except Exception as e:
+             # If Robust fails, fallback silent
+             # print(f"Robust DT Error: {e}")
+             pass
+
+        # --- FALLBACK: LPT Algorithm ---
+        from pyopenlpt import Image as LPTImage, CircleIdentifier
         
-        # 5. Detect
+        lpt_img = LPTImage.from_numpy(img)
         detector = CircleIdentifier(lpt_img)
         centers, radii, metrics = detector.BubbleCenterAndSizeByCircle(
             float(min_radius), float(max_radius), float(sensitivity)
@@ -49,7 +229,6 @@ def run_detection_task(args):
         if len(centers) == 0:
             return f_idx, c_idx, None
             
-        # 6. Format Result
         pts = []
         for i in range(len(centers)):
             x = centers[i][0]
@@ -63,13 +242,8 @@ def run_detection_task(args):
         return f_idx, c_idx, np.array(pts)
         
     except ImportError:
-        # Fallback to pure OpenCV if binding missing (unlikely in worker if main has it, but safe)
-        # Note: We duplicate opencv logic here or just fail. 
-        # For simplicity, if pyopenlpt fails, we return None (or could implement opencv here).
-        # Given user has pyopenlpt, we assume success.
         return f_idx, c_idx, None
     except Exception as e:
-        # print(f"Worker Error {c_idx}: {e}")
         return f_idx, c_idx, None
 
 

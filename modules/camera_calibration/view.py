@@ -2618,6 +2618,15 @@ class CameraCalibrationView(QWidget):
         self._detect_dialog.setWindowTitle("Please Wait")
         self._detect_dialog.setWindowModality(Qt.WindowModality.WindowModal)
         self._detect_dialog.setMinimumDuration(0) # Show immediately
+        self._detect_dialog.setStyleSheet("""
+            QProgressDialog { background-color: #2b2b2b; color: #ffffff; padding: 15px; border: 1px solid #444; }
+            QLabel { color: #ffffff; font-size: 13px; font-weight: bold; background-color: transparent; }
+            QProgressBar { 
+                min-height: 12px; max-height: 12px; margin: 10px 15px; 
+                background-color: #444; border-radius: 4px; text-align: center; color: white;
+            }
+            QProgressBar::chunk { background-color: #00bcd4; border-radius: 4px; }
+        """)
         self._detect_dialog.show()
         
         # Connect finish to close

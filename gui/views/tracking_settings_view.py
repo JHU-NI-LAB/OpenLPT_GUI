@@ -1224,6 +1224,15 @@ class TrackingSettingsView(QWidget):
         progress.setWindowTitle("Please Wait")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
+        progress.setStyleSheet("""
+            QProgressDialog { background-color: #2b2b2b; color: #ffffff; padding: 15px; border: 1px solid #444; }
+            QLabel { color: #ffffff; font-size: 13px; font-weight: bold; background-color: transparent; }
+            QProgressBar { 
+                min-height: 12px; max-height: 12px; margin: 10px 15px; 
+                background-color: #444; border-radius: 4px; text-align: center; color: white;
+            }
+            QProgressBar::chunk { background-color: #00bcd4; border-radius: 4px; }
+        """)
         progress.show()
         QApplication.processEvents()
 
