@@ -23,6 +23,7 @@ from PySide6.QtGui import QPixmap, QImage, QPainter, QPen, QColor
 
 from .widgets import RangeSlider, ProcessingDialog
 from .core import imadjust_opencv, apply_processing_pipeline_with_settings
+from gui.utils.sorting import natural_sorted_by_basename
 
 try:
     from pycine.raw import read_frames as pycine_read_frames
@@ -1270,7 +1271,7 @@ class ImagePreprocessingView(QWidget):
         print(f"pycine library status: {'Available' if pycine is not None else 'NOT FOUND'}")
         
         # 1. Try Rule 2 (Flat Cine) - cine files directly in root
-        root_cine_files = sorted([
+        root_cine_files = natural_sorted_by_basename([
             f for f in os.listdir(root_dir)
             if f.lower().endswith('.cine')
         ])
@@ -1304,7 +1305,7 @@ class ImagePreprocessingView(QWidget):
         else:
             # 2. Try Rule 1 (Subfolders with Cine) or Standard Images
             try:
-                subdirs = sorted([
+                subdirs = natural_sorted_by_basename([
                     d for d in os.listdir(root_dir) 
                     if os.path.isdir(os.path.join(root_dir, d))
                 ])
@@ -1318,7 +1319,7 @@ class ImagePreprocessingView(QWidget):
             
             for i, folder in enumerate(self.camera_folders):
                 # Check for images first
-                img_files = sorted([
+                img_files = natural_sorted_by_basename([
                     f for f in os.listdir(folder)
                     if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff'))
                 ])
@@ -1329,7 +1330,7 @@ class ImagePreprocessingView(QWidget):
                     total_images = min(total_images, len(img_files))
                 else:
                     # Look for Cine (Rule 1)
-                    cine_files = sorted([f for f in os.listdir(folder) if f.lower().endswith('.cine')])
+                    cine_files = natural_sorted_by_basename([f for f in os.listdir(folder) if f.lower().endswith('.cine')])
                     if cine_files and pycine:
                         cine_path = os.path.join(folder, cine_files[0])
                         try:

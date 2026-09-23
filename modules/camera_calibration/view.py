@@ -26,6 +26,7 @@ from PySide6.QtGui import QPainter, QPen, QColor, QPixmap, QPainterPath
 from PySide6.QtCore import QRect, Signal, QPoint, QThread, QTimer, Slot, QObject, QEvent
 
 from .image_utils import load_image_any_depth, to_gray_uint8, to_rgb_uint8
+from gui.utils.sorting import natural_sorted_by_basename
 
 
 def format_calibration_error_stats(stats):
@@ -3463,7 +3464,7 @@ class CameraCalibrationView(QWidget):
         if not files:
             return
 
-        files = sorted(files)
+        files = natural_sorted_by_basename(files)
         self.axis_images[cam_idx] = files
         self.axis_detected_points[cam_idx] = {}
         st = self.axis_select_state.get(cam_idx, {})
@@ -3965,7 +3966,7 @@ class CameraCalibrationView(QWidget):
             return
         
         from pathlib import Path
-        files = sorted(files)
+        files = natural_sorted_by_basename(files)
         
         if files:
             # Clear previous images as requested
@@ -4716,7 +4717,7 @@ class CameraCalibrationView(QWidget):
         image_exts = ['.png', '.jpg', '.bmp', '.tif', '.jpeg']
         cam_files = []
         for n, cam_dir in cam_dirs:
-            files = sorted(
+            files = natural_sorted_by_basename(
                 str(f) for f in cam_dir.iterdir()
                 if f.is_file() and f.suffix.lower() in image_exts
             )
@@ -4805,7 +4806,7 @@ class CameraCalibrationView(QWidget):
             from pathlib import Path
             p = Path(folder)
             # Find images
-            files = sorted([str(f) for f in p.iterdir() if f.suffix.lower() in ['.png', '.jpg', '.bmp', '.tif', '.jpeg']])
+            files = natural_sorted_by_basename([str(f) for f in p.iterdir() if f.suffix.lower() in ['.png', '.jpg', '.bmp', '.tif', '.jpeg']])
             
             if files:
                 self.wand_images[cam_idx] = files

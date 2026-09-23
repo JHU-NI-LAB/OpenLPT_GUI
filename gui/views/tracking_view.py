@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import qtawesome as qta
+from gui.utils.sorting import natural_sorted_by_basename
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QPushButton, QGroupBox, QGridLayout, QProgressBar,
@@ -1665,10 +1666,10 @@ class TrackingView(QWidget):
         if not image_name_files and proj_path:
             img_file_path = os.path.join(proj_path, "imgFile")
             if os.path.exists(img_file_path):
-                 cam_dirs = sorted([d for d in os.listdir(img_file_path) if d.startswith("cam") and os.path.isdir(os.path.join(img_file_path, d))])
-                 # Construct mock paths for consistency
-                 for d in cam_dirs:
-                     image_name_files.append(os.path.join(img_file_path, f"{d}ImageNames.txt"))
+                cam_dirs = natural_sorted_by_basename([d for d in os.listdir(img_file_path) if d.startswith("cam") and os.path.isdir(os.path.join(img_file_path, d))])
+                # Construct mock paths for consistency
+                for d in cam_dirs:
+                    image_name_files.append(os.path.join(img_file_path, f"{d}ImageNames.txt"))
         
         self.num_cameras = len(image_name_files)
         if self.num_cameras == 0:
@@ -1736,8 +1737,8 @@ class TrackingView(QWidget):
                     folder_path = os.path.join(parent, folder_name)
                     if os.path.isdir(folder_path):
                         # Scan folder
-                         imgs = sorted([f for f in os.listdir(folder_path) if f.lower().endswith(('.tif', '.png', '.jpg'))])
-                         self.cam_image_paths[cam_key] = [os.path.join(folder_path, img) for img in imgs]
+                        imgs = natural_sorted_by_basename([f for f in os.listdir(folder_path) if f.lower().endswith(('.tif', '.png', '.jpg'))])
+                        self.cam_image_paths[cam_key] = [os.path.join(folder_path, img) for img in imgs]
 
             # Create Checkbox
             self.cam_name_to_idx[cam_key] = i

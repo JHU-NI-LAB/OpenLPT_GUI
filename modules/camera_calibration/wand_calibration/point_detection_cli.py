@@ -27,6 +27,8 @@ import re
 import argparse
 from pathlib import Path
 
+from gui.utils.sorting import natural_sorted_by_basename
+
 try:
     # Normal package import (python -m ...).
     from .wand_calibrator import WandCalibrator
@@ -61,10 +63,12 @@ def discover_cam_folders(t0_dir):
 
 
 def list_cam_images(folder):
-    """Sorted list of image file paths in a camera folder."""
+    """Naturally sorted list of image file paths in a camera folder."""
     p = Path(folder)
-    return sorted(str(f) for f in p.iterdir()
-                  if f.is_file() and f.suffix.lower() in IMAGE_EXTS)
+    return natural_sorted_by_basename(
+        str(f) for f in p.iterdir()
+        if f.is_file() and f.suffix.lower() in IMAGE_EXTS
+    )
 
 
 def build_image_paths_dict(cam_folders):
