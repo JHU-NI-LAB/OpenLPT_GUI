@@ -645,6 +645,16 @@ class WandCalibrator:
         # 5. Extract Stats from Data in Ranges
         data_s = [x for x in radii if range_s[0] <= x <= range_s[1]]
         data_l = [x for x in radii if range_l[0] <= x <= range_l[1]]
+
+        # Radius-support overlap guard: touching closed ranges are ambiguous too.
+        support_overlap = max(range_s[0], range_l[0]) <= min(range_s[1], range_l[1])
+        shared_members = sum(range_s[0] <= x <= range_s[1] and range_l[0] <= x <= range_l[1] for x in radii)
+        if support_overlap or shared_members > 0:
+            print(f"Cam {cam_idx}: Discarding peak stats: Small/Large supports overlap "
+                  f"(S[{range_s[0]:.1f}, {range_s[1]:.1f}], L[{range_l[0]:.1f}, {range_l[1]:.1f}], "
+                  f"shared samples={shared_members}).")
+            return None  # Caller retains the existing median-zoning fallback.
+        # End radius-support overlap guard.
         
         if len(data_s) < 5 or len(data_l) < 5:
             return None
